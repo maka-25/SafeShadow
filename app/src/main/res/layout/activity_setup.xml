@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#1A1A1A"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Emergency Contacts"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="6dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="These contacts will receive your SOS alerts"
+        android:textSize="13sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- Add contact input row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <EditText
+            android:id="@+id/etContactName"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:hint="Name"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#777777"
+            android:backgroundTint="#333333"
+            android:paddingStart="12dp"
+            android:inputType="textPersonName"
+            android:layout_marginEnd="8dp"/>
+
+        <EditText
+            android:id="@+id/etContactPhone"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1.5"
+            android:hint="+91XXXXXXXXXX"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#777777"
+            android:backgroundTint="#333333"
+            android:paddingStart="12dp"
+            android:inputType="phone"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/btnAddContact"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:text="+"
+            android:textSize="24sp"
+            android:backgroundTint="#B71C1C"
+            android:textColor="#FFFFFF"
+            android:padding="0dp"/>
+
+    </LinearLayout>
+
+    <!-- Contact list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvContacts"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Max contacts note -->
+    <TextView
+        android:id="@+id/tvContactCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0 / 5 contacts added"
+        android:textSize="12sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="12dp"/>
+
+    <Button
+        android:id="@+id/btnDone"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Done"
+        android:textSize="16sp"
+        android:backgroundTint="#B71C1C"
+        android:textColor="#FFFFFF"/>
+
+</LinearLayout>

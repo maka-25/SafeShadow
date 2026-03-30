@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#1A1A1A">
+
+    <TextView
+        android:id="@+id/tvAppTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🛡️ SafeShadow"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tvSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Your personal safety companion"
+        android:textSize="14sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="48dp"/>
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔴 Safety Mode: OFF"
+        android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/btnToggleSafety"
+        android:layout_width="240dp"
+        android:layout_height="60dp"
+        android:text="Turn ON Safety Mode"
+        android:textSize="16sp"
+        android:backgroundTint="#B71C1C"
+        android:textColor="#FFFFFF"/>
+
+    <Button
+        android:id="@+id/btnSetupContacts"
+        android:layout_width="240dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="12dp"
+        android:text="Manage Contacts"
+        android:textSize="16sp"
+        android:backgroundTint="#333333"
+        android:textColor="#FFFFFF"/>
+
+    <!-- TEMPORARY TEST BUTTON — remove after testing -->
+    <Button
+        android:id="@+id/btnTestShake"
+        android:layout_width="240dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="16dp"
+        android:text="Test Shake (Temp)"
+        android:textSize="16sp"
+        android:backgroundTint="#FF6F00"
+        android:textColor="#FFFFFF"/>
+
+    <!-- TEMPORARY TEST BUTTONS — remove after testing -->
+    <Button
+        android:id="@+id/btnTestFall"
+        android:layout_width="240dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="8dp"
+        android:text="Test Fall (Temp)"
+        android:textSize="16sp"
+        android:backgroundTint="#1565C0"
+        android:textColor="#FFFFFF"/>
+
+    <Button
+        android:id="@+id/btnTestRunning"
+        android:layout_width="240dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="8dp"
+        android:text="Test Running (Temp)"
+        android:textSize="16sp"
+        android:backgroundTint="#6A1B9A"
+        android:textColor="#FFFFFF"/>
+
+</LinearLayout>

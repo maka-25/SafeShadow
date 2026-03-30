@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="#2A2A2A"
+    android:padding="14dp"
+    android:layout_marginBottom="8dp">
+
+    <!-- Contact icon -->
+    <TextView
+        android:id="@+id/tvContactIcon"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:gravity="center"
+        android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/circle_bg"
+        android:layout_marginEnd="12dp"/>
+
+    <!-- Name and number -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tvContactName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"/>
+
+        <TextView
+            android:id="@+id/tvContactPhone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="#AAAAAA"
+            android:layout_marginTop="2dp"/>
+
+    </LinearLayout>
+
+    <!-- Delete button -->
+    <Button
+        android:id="@+id/btnDeleteContact"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:text="✕"
+        android:textSize="14sp"
+        android:backgroundTint="#7F0000"
+        android:textColor="#FFFFFF"
+        android:padding="0dp"
+        android:layout_gravity="center_vertical"/>
+
+</LinearLayout>
