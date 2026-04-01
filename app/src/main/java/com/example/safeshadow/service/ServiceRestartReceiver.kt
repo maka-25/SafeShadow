@@ -10,7 +10,7 @@ class ServiceRestartReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
         if (
-            action == "com.safeshadow.RESTART_SERVICE" ||
+            action == "com.example.safeshadow.RESTART_SERVICE" ||
             action == Intent.ACTION_BOOT_COMPLETED
         ) {
             if (PrefsHelper.isSafetyModeOn(context)) {

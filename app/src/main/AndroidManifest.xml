@@ -51,7 +51,7 @@
             android:name="com.example.safeshadow.service.ServiceRestartReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.safeshadow.RESTART_SERVICE" />
+                <action android:name="com.example.safeshadow.RESTART_SERVICE" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>

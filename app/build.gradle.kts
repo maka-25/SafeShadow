@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.safeshadow"
+    namespace = "com.example.safeshadow"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.safeshadow"
+        applicationId = "com.example.safeshadow"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

@@ -17,7 +17,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.safeshadow.MainActivity
 import com.example.safeshadow.PrefsHelper
-import com.safeshadow.R
+import com.example.safeshadow.R
 import com.example.safeshadow.detection.ShakeDetector
 import com.example.safeshadow.detection.FallDetector
 import com.example.safeshadow.detection.RunningDetector
@@ -73,8 +73,13 @@ class SafetyService : Service() {
             ACTION_TEST_FALL    -> onSuspiciousEventDetected("Possible fall detected")
             ACTION_TEST_RUNNING -> onSuspiciousEventDetected("You appear to be running")
             ACTION_SOS_TRIGGERED -> {
+                // Prevent duplicate alerts
+                if (PrefsHelper.isAlertOnCooldown(this, ALERT_COOLDOWN)) {
+                    Log.d("SafeShadow", "Manual SOS ignored due to cooldown")
+                    return START_STICKY
+                }
                 updateNotification("🚨 SOS Triggered! Sending alert...")
-                // Reset notification after 5 seconds
+                AlertManager.sendSosAlert(this, reason = "Manual SOS")
                 android.os.Handler(mainLooper).postDelayed({
                     if (!intentionallyStopped && PrefsHelper.isSafetyModeOn(this)) {
                         updateNotification("Safety Mode Active 🛡️")
@@ -100,7 +105,7 @@ class SafetyService : Service() {
         stopShakeDetector()
         if (!intentionallyStopped && PrefsHelper.isSafetyModeOn(this)) {
             // Restart via broadcast as backup
-            sendBroadcast(Intent("com.safeshadow.RESTART_SERVICE"))
+            sendBroadcast(Intent("com.example.safeshadow.RESTART_SERVICE"))
         }
     }
 

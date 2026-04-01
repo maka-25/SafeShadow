@@ -15,9 +15,11 @@ object AlertManager {
 
     private const val TAG = "SafeShadow"
 
-    // Main function — fetches location then sends SMS to all contacts
     fun sendSosAlert(context: Context, reason: String = "SOS") {
-        // Use getContactNumbers which extracts just phone numbers
+
+        // Start global cooldown immediately
+        PrefsHelper.setLastAlertTime(context)
+
         val contacts = PrefsHelper.getContactNumbers(context)
 
         if (contacts.isEmpty()) {
@@ -66,7 +68,6 @@ object AlertManager {
         contacts: List<String>,
         message: String
     ) {
-        // Check SMS permission
         if (ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.SEND_SMS
@@ -80,7 +81,6 @@ object AlertManager {
 
         contacts.forEach { number ->
             try {
-                // divideMessage handles messages longer than 160 chars
                 val parts = smsManager.divideMessage(message)
                 smsManager.sendMultipartTextMessage(
                     number,

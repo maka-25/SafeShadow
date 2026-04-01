@@ -18,7 +18,7 @@ import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
-import com.safeshadow.R
+import com.example.safeshadow.R
 import com.example.safeshadow.ui.SetupActivity
 
 class MainActivity : AppCompatActivity() {
@@ -98,34 +98,95 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnSetupContacts).setOnClickListener {
             startActivity(Intent(this, SetupActivity::class.java))
         }
+
+        val btnSOS = findViewById<Button>(R.id.btnSOS)
+
+        btnSOS.setOnClickListener {
+
+            if (!isSafetyServiceRunning()) {
+                Toast.makeText(
+                    this,
+                    "Turn ON Safety Mode first",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            if (PrefsHelper.isAlertOnCooldown(this)) {
+                Toast.makeText(
+                    this,
+                    "Alert already sent recently. Please wait.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            AlertDialog.Builder(this)
+                .setTitle("Send SOS Alert?")
+                .setMessage(
+                    "This will immediately send your location to all emergency contacts.\n\n" +
+                            "Do you want to continue?"
+                )
+                .setPositiveButton("YES, SEND") { _, _ ->
+
+                    val intent = Intent(this, SafetyService::class.java).apply {
+                        action = SafetyService.ACTION_SOS_TRIGGERED
+                    }
+                    startService(intent)
+
+                    Toast.makeText(
+                        this,
+                        "SOS Alert Sent",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                .setNegativeButton("CANCEL", null)
+                .show()
+        }
     }
 
-    // Called every time activity comes to foreground
     override fun onResume() {
         super.onResume()
         updateUI()
     }
 
     private fun isSafetyServiceRunning(): Boolean {
-        // Source of truth: SharedPreferences, not static variable
         return PrefsHelper.isSafetyModeOn(this)
     }
 
     private fun startSafetyService() {
-        // Prevent double-start
+
+        val hasLocationPermission =
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasLocationPermission) {
+            Toast.makeText(
+                this,
+                "Please grant location permission first",
+                Toast.LENGTH_SHORT
+            ).show()
+            requestAllPermissions()
+            return
+        }
+
         if (isSafetyServiceRunning()) {
             updateUI()
             return
         }
+
         PrefsHelper.setSafetyModeOn(this, true)
+
         val intent = Intent(this, SafetyService::class.java)
         ContextCompat.startForegroundService(this, intent)
+
         Toast.makeText(this, "Safety Mode ON", Toast.LENGTH_SHORT).show()
         updateUI()
     }
 
     private fun stopSafetyService() {
-        // Prevent double-stop
         if (!isSafetyServiceRunning()) {
             updateUI()
             return
@@ -144,16 +205,12 @@ class MainActivity : AppCompatActivity() {
             tvStatus.text = "🟢 Safety Mode: ON"
             btnToggleSafety.text = "Turn OFF Safety Mode"
             btnToggleSafety.backgroundTintList =
-                ColorStateList.valueOf(
-                    Color.parseColor("#388E3C") // green
-                )
+                ColorStateList.valueOf(Color.parseColor("#388E3C"))
         } else {
             tvStatus.text = "🔴 Safety Mode: OFF"
             btnToggleSafety.text = "Turn ON Safety Mode"
             btnToggleSafety.backgroundTintList =
-                ColorStateList.valueOf(
-                    Color.parseColor("#B71C1C") // red
-                )
+                ColorStateList.valueOf(Color.parseColor("#B71C1C"))
         }
     }
 
@@ -166,11 +223,9 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
-
         val notGranted = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-
         if (notGranted.isNotEmpty()) {
             AlertDialog.Builder(this)
                 .setTitle("Permissions Needed")
@@ -190,9 +245,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestBatteryOptimizationExemption() {
-        // Only ask once ever — don't show again if already asked
         if (PrefsHelper.wasBatteryOptimizationAsked(this)) return
-
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
             AlertDialog.Builder(this)
@@ -212,16 +265,14 @@ class MainActivity : AppCompatActivity() {
                         }
                         startActivity(intent)
                     } catch (e: Exception) {
-                        // Some devices don't support this — fail silently
+                        // fail silently
                     }
                 }
                 .setNegativeButton("Skip") { _, _ ->
-                    // Mark as asked even if skipped so it never shows again
                     PrefsHelper.setBatteryOptimizationAsked(this)
                 }
                 .show()
         } else {
-            // Already exempted — mark as asked so we never check again
             PrefsHelper.setBatteryOptimizationAsked(this)
         }
     }

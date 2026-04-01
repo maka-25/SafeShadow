@@ -54,6 +54,17 @@
         android:backgroundTint="#333333"
         android:textColor="#FFFFFF"/>
 
+    <Button
+        android:id="@+id/btnSOS"
+        android:layout_width="240dp"
+        android:layout_height="70dp"
+        android:layout_marginTop="20dp"
+        android:text="🚨 SOS"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:backgroundTint="#D32F2F"
+        android:textColor="#FFFFFF"/>
+
     <!-- TEMPORARY TEST BUTTON — remove after testing -->
     <Button
         android:id="@+id/btnTestShake"
