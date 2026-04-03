@@ -215,7 +215,7 @@ class SetupActivity : AppCompatActivity() {
             val contact = items[position]
             holder.name.text = contact.name
             holder.phone.text = contact.phone
-            holder.icon.text = contact.name.first { it.isLetter() }.uppercase()
+            holder.icon.text = contact.name.firstOrNull { it.isLetter() }?.uppercase() ?: "?"
             holder.delete.setOnClickListener { onDelete(holder.adapterPosition) }
         }
 

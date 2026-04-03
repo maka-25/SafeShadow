@@ -58,14 +58,15 @@ object PrefsHelper {
             .apply()
     }
 
-    fun isAlertOnCooldown(context: Context, cooldownMs: Long = 15000L): Boolean {
+    fun isAlertOnCooldown(context: Context, cooldownMs: Long = -1L): Boolean {
+        // If no override passed, read from user settings
+        val effectiveCooldown = if (cooldownMs == -1L) getAlertCooldownMs(context) else cooldownMs
         val last = prefs(context).getLong("last_alert_time", 0L)
-        return System.currentTimeMillis() - last < cooldownMs
+        return System.currentTimeMillis() - last < effectiveCooldown
     }
 
     // ─── Travel Mode ───────────────────────────────────────────────────────────
 
-    /** Save travel session when user starts travel mode */
     fun startTravel(
         context: Context,
         destination: String,
@@ -86,7 +87,6 @@ object PrefsHelper {
             .apply()
     }
 
-    /** Extend ETA by given minutes (max 3 extensions enforced in UI) */
     fun extendTravel(context: Context, extraMinutes: Int) {
         val current = prefs(context).getLong("travel_eta_end_time", System.currentTimeMillis())
         val extensions = prefs(context).getInt("travel_extensions_used", 0)
@@ -96,7 +96,6 @@ object PrefsHelper {
             .apply()
     }
 
-    /** Stop / clear travel session */
     fun stopTravel(context: Context) {
         prefs(context).edit()
             .putBoolean("travel_active", false)
@@ -130,7 +129,6 @@ object PrefsHelper {
     fun getTravelExtensionsUsed(context: Context): Int =
         prefs(context).getInt("travel_extensions_used", 0)
 
-    /** Track last known location for stillness detection */
     fun saveLastKnownLocation(context: Context, lat: Double, lng: Double, timeMs: Long) {
         prefs(context).edit()
             .putFloat("last_loc_lat", lat.toFloat())
@@ -147,6 +145,56 @@ object PrefsHelper {
 
     fun getLastKnownLocTime(context: Context): Long =
         prefs(context).getLong("last_loc_time", 0L)
+
+    // ─── Settings ──────────────────────────────────────────────────────────────
+
+    // Theme: "system" | "light" | "dark"
+    fun setTheme(context: Context, theme: String) {
+        prefs(context).edit().putString("setting_theme", theme).apply()
+    }
+
+    fun getTheme(context: Context): String =
+        prefs(context).getString("setting_theme", "system") ?: "system"
+
+    // Fall detection toggle
+    fun setFallDetectionEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean("setting_fall_detection", enabled).apply()
+    }
+
+    fun isFallDetectionEnabled(context: Context): Boolean =
+        prefs(context).getBoolean("setting_fall_detection", true)
+
+    // Running detection toggle
+    fun setRunningDetectionEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean("setting_running_detection", enabled).apply()
+    }
+
+    fun isRunningDetectionEnabled(context: Context): Boolean =
+        prefs(context).getBoolean("setting_running_detection", true)
+
+    // Shake confirmation — shows 5-second buffer activity before sending SOS on shake
+    fun setShakeConfirmationEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean("setting_shake_confirmation", enabled).apply()
+    }
+
+    fun isShakeConfirmationEnabled(context: Context): Boolean =
+        prefs(context).getBoolean("setting_shake_confirmation", false)
+
+    // Alert cooldown in seconds — 15 | 30 | 60 | 120
+    fun setAlertCooldownSeconds(context: Context, seconds: Int) {
+        prefs(context).edit().putInt("setting_alert_cooldown_seconds", seconds).apply()
+    }
+
+    fun getAlertCooldownMs(context: Context): Long =
+        prefs(context).getInt("setting_alert_cooldown_seconds", 15).toLong() * 1000L
+
+    // Custom SOS message prefix prepended to every SMS alert
+    fun setCustomSosMessage(context: Context, message: String) {
+        prefs(context).edit().putString("setting_custom_sos_message", message.trim()).apply()
+    }
+
+    fun getCustomSosMessage(context: Context): String =
+        prefs(context).getString("setting_custom_sos_message", "") ?: ""
 }
 
 // Simple data class for a contact

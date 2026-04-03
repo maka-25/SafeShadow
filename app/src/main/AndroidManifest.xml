@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Existing permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.SEND_SMS" />
@@ -10,12 +9,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- NEW: Required for OSMDroid map tiles -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-    <!-- NEW: Required for writing OSMDroid tile cache to storage -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
@@ -44,19 +39,21 @@
             android:exported="false" />
 
         <activity
+            android:name="com.example.safeshadow.ui.SettingsActivity"
+            android:exported="false" />
+
+        <activity
             android:name="com.example.safeshadow.ui.SafetyAlertActivity"
             android:exported="false"
             android:theme="@style/Theme.Transparent"
             android:launchMode="singleTop"
             android:showOnLockScreen="true" />
 
-        <!-- NEW: Travel Mode setup screen with map -->
         <activity
             android:name="com.example.safeshadow.ui.TravelModeActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- NEW: Travel safety check dialog (like SafetyAlertActivity) -->
         <activity
             android:name="com.example.safeshadow.ui.TravelAlertActivity"
             android:exported="false"

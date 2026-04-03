@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -19,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.safeshadow.service.SafetyService
 import com.example.safeshadow.ui.SetupActivity
+import com.example.safeshadow.ui.SettingsActivity
 import com.example.safeshadow.ui.TravelModeActivity
 
 class MainActivity : AppCompatActivity() {
@@ -44,22 +47,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Use the app toolbar so gear icon appears in the top-right corner
+        setSupportActionBar(findViewById(R.id.toolbar))
+        supportActionBar?.setDisplayShowTitleEnabled(false)
+
         btnToggleSafety = findViewById(R.id.btnToggleSafety)
-        tvStatus = findViewById(R.id.tvStatus)
-        btnTravelMode = findViewById(R.id.btnTravelMode)
+        tvStatus        = findViewById(R.id.tvStatus)
+        btnTravelMode   = findViewById(R.id.btnTravelMode)
 
         requestAllPermissions()
         requestBatteryOptimizationExemption()
 
         btnToggleSafety.setOnClickListener {
-            if (isSafetyServiceRunning()) {
-                stopSafetyService()
-            } else {
-                startSafetyService()
-            }
+            if (isSafetyServiceRunning()) stopSafetyService() else startSafetyService()
         }
 
-        // ── Travel Mode ────────────────────────────────────────────────────────
         btnTravelMode.setOnClickListener {
             if (!isSafetyServiceRunning()) {
                 Toast.makeText(
@@ -72,23 +74,19 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, TravelModeActivity::class.java))
         }
 
-        // ── Contacts ───────────────────────────────────────────────────────────
         findViewById<Button>(R.id.btnSetupContacts).setOnClickListener {
             startActivity(Intent(this, SetupActivity::class.java))
         }
 
-        // ── Manual SOS ────────────────────────────────────────────────────────
-        val btnSOS = findViewById<Button>(R.id.btnSOS)
-        btnSOS.setOnClickListener {
+        // ── Manual SOS ────────────────────────────────────────────────────────────
+        findViewById<Button>(R.id.btnSOS).setOnClickListener {
             if (!isSafetyServiceRunning()) {
                 Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             if (PrefsHelper.isAlertOnCooldown(this)) {
                 Toast.makeText(
-                    this,
-                    "Alert already sent recently. Please wait.",
-                    Toast.LENGTH_SHORT
+                    this, "Alert already sent recently. Please wait.", Toast.LENGTH_SHORT
                 ).show()
                 return@setOnClickListener
             }
@@ -99,17 +97,16 @@ class MainActivity : AppCompatActivity() {
                             "Do you want to continue?"
                 )
                 .setPositiveButton("YES, SEND") { _, _ ->
-                    val intent = Intent(this, SafetyService::class.java).apply {
+                    startService(Intent(this, SafetyService::class.java).apply {
                         action = SafetyService.ACTION_SOS_TRIGGERED
-                    }
-                    startService(intent)
+                    })
                     Toast.makeText(this, "SOS Alert Sent", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("CANCEL", null)
                 .show()
         }
 
-        // ── TEMPORARY TEST BUTTONS (remove before release) ────────────────────
+        // ── TEMPORARY TEST BUTTONS (remove before release) ────────────────────────
         findViewById<Button>(R.id.btnTestShake).setOnClickListener {
             if (!isSafetyServiceRunning()) {
                 Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
@@ -141,6 +138,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ─── Toolbar menu — gear icon ────────────────────────────────────────────────
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    // ─── Lifecycle ───────────────────────────────────────────────────────────────
+
     override fun onResume() {
         super.onResume()
         updateUI()
@@ -161,9 +177,7 @@ class MainActivity : AppCompatActivity() {
 
         if (!hasLocation || !hasSms) {
             Toast.makeText(
-                this,
-                "Please grant Location and SMS permissions first",
-                Toast.LENGTH_LONG
+                this, "Please grant Location and SMS permissions first", Toast.LENGTH_LONG
             ).show()
             requestAllPermissions()
             return
@@ -171,9 +185,7 @@ class MainActivity : AppCompatActivity() {
 
         if (PrefsHelper.getContactNumbers(this).isEmpty()) {
             Toast.makeText(
-                this,
-                "Please add at least one emergency contact",
-                Toast.LENGTH_LONG
+                this, "Please add at least one emergency contact", Toast.LENGTH_LONG
             ).show()
             return
         }
@@ -189,7 +201,6 @@ class MainActivity : AppCompatActivity() {
     private fun stopSafetyService() {
         if (!isSafetyServiceRunning()) { updateUI(); return }
 
-        // If travel is active, confirm before stopping
         if (PrefsHelper.isTravelActive(this)) {
             AlertDialog.Builder(this)
                 .setTitle("Stop Safety Mode?")
@@ -228,7 +239,6 @@ class MainActivity : AppCompatActivity() {
             btnToggleSafety.backgroundTintList =
                 ColorStateList.valueOf(Color.parseColor("#388E3C"))
 
-            // Show travel mode status in button
             if (PrefsHelper.isTravelActive(this)) {
                 val dest = PrefsHelper.getTravelDestination(this)
                 btnTravelMode.text = "🚗 Travel Active: $dest"
