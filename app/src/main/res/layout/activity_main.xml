@@ -55,6 +55,17 @@
         android:textColor="#FFFFFF"/>
 
     <Button
+        android:id="@+id/btnTravelMode"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🗺️ Start Travel Mode"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:backgroundTint="#0288D1"
+        android:layout_marginTop="8dp"
+        android:enabled="false" />
+
+    <Button
         android:id="@+id/btnSOS"
         android:layout_width="240dp"
         android:layout_height="70dp"

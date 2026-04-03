@@ -11,6 +11,7 @@ import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
@@ -21,77 +22,131 @@ import com.example.safeshadow.R
 import com.example.safeshadow.detection.ShakeDetector
 import com.example.safeshadow.detection.FallDetector
 import com.example.safeshadow.detection.RunningDetector
+import com.example.safeshadow.travel.TravelModeManager
 import com.example.safeshadow.ui.SafetyAlertActivity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class SafetyService : Service() {
 
     companion object {
         const val NOTIFICATION_ID = 1001
-        const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
-        const val ACTION_START_TRAVEL = "ACTION_START_TRAVEL"
-        const val ACTION_STOP_TRAVEL = "ACTION_STOP_TRAVEL"
-        const val ACTION_TEST_SHAKE = "ACTION_TEST_SHAKE"
-        private const val CHANNEL_ID = "SAFE_CHANNEL"
+        const val ACTION_STOP_SERVICE         = "ACTION_STOP_SERVICE"
+        const val ACTION_START_TRAVEL         = "ACTION_START_TRAVEL"
+        const val ACTION_STOP_TRAVEL          = "ACTION_STOP_TRAVEL"
+        const val ACTION_TRAVEL_EXTENDED      = "ACTION_TRAVEL_EXTENDED"
+        const val ACTION_TRAVEL_ALERT_DISMISSED = "ACTION_TRAVEL_ALERT_DISMISSED"
+        const val ACTION_TEST_SHAKE           = "ACTION_TEST_SHAKE"
+        const val ACTION_TEST_FALL            = "ACTION_TEST_FALL"
+        const val ACTION_TEST_RUNNING         = "ACTION_TEST_RUNNING"
+        const val ACTION_SOS_TRIGGERED        = "ACTION_SOS_TRIGGERED"
+
+        private const val CHANNEL_ID   = "SAFE_CHANNEL"
         private const val CHANNEL_NAME = "Safety Service"
-        const val ACTION_TEST_FALL = "ACTION_TEST_FALL"
-        const val ACTION_TEST_RUNNING = "ACTION_TEST_RUNNING"
-        const val ACTION_SOS_TRIGGERED = "ACTION_SOS_TRIGGERED"
     }
 
-    private var lastAlertTime = 0L
     private val ALERT_COOLDOWN = 15000L  // 15 seconds between alerts
     private var intentionallyStopped = false
+
     private lateinit var sensorManager: SensorManager
     private lateinit var shakeDetector: ShakeDetector
     private lateinit var fallDetector: FallDetector
     private lateinit var runningDetector: RunningDetector
+
+    // Travel Mode Manager — created lazily, destroyed on stop
+    private var travelModeManager: TravelModeManager? = null
+
     private var currentNotificationText = "Safety Mode Active 🛡️"
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        // Call startForeground IMMEDIATELY — no delay, no conditions
         startForeground(NOTIFICATION_ID, buildNotification(currentNotificationText))
-        setupShakeDetector()
+        setupDetectors()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Always re-anchor the foreground notification on every start
         startForeground(NOTIFICATION_ID, buildNotification(currentNotificationText))
 
         when (intent?.action) {
+
             ACTION_STOP_SERVICE -> {
                 intentionallyStopped = true
-                stopShakeDetector()
+                travelModeManager?.stop()
+                travelModeManager = null
+                stopDetectors()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
-            ACTION_START_TRAVEL -> updateNotification("Travel Mode Active 🚗")
-            ACTION_STOP_TRAVEL  -> updateNotification("Safety Mode Active 🛡️")
-            ACTION_TEST_SHAKE   -> onShakeTriggered()
-            ACTION_TEST_FALL    -> onSuspiciousEventDetected("Possible fall detected")
+
+            ACTION_START_TRAVEL -> {
+                // Stop any previous travel session first
+                travelModeManager?.stop()
+                travelModeManager = TravelModeManager(this)
+                travelModeManager!!.start()
+                val dest = PrefsHelper.getTravelDestination(this)
+                val etaEnd = PrefsHelper.getTravelEtaEndTime(this)
+                val remainingMin = ((etaEnd - System.currentTimeMillis()) / 60000)
+                    .coerceAtLeast(0)
+                updateNotification("🚗 Travel: $dest (~$remainingMin min)")
+                Log.d("SafeShadow", "Travel Mode started to: $dest")
+            }
+
+            ACTION_STOP_TRAVEL -> {
+                travelModeManager?.stop()
+                travelModeManager = null
+                PrefsHelper.stopTravel(this)
+                updateNotification("Safety Mode Active 🛡️")
+                Log.d("SafeShadow", "Travel Mode stopped")
+            }
+
+            ACTION_TRAVEL_EXTENDED -> {
+                // User extended ETA — update notification with new time
+                val etaEnd = PrefsHelper.getTravelEtaEndTime(this)
+                val remainingMin = ((etaEnd - System.currentTimeMillis()) / 60000)
+                    .coerceAtLeast(0)
+                val dest = PrefsHelper.getTravelDestination(this)
+                updateNotification("🚗 Travel: $dest (~$remainingMin min)")
+                Log.d("SafeShadow", "Travel extended by user")
+            }
+
+            ACTION_TRAVEL_ALERT_DISMISSED -> {
+                // TravelAlertActivity dismissed — reset alertShowing in manager
+                travelModeManager?.onAlertDismissed()
+            }
+
+            ACTION_TEST_SHAKE -> onShakeTriggered()
+
+            ACTION_TEST_FALL -> onSuspiciousEventDetected("Possible fall detected")
+
             ACTION_TEST_RUNNING -> onSuspiciousEventDetected("You appear to be running")
+
             ACTION_SOS_TRIGGERED -> {
-                // Prevent duplicate alerts
                 if (PrefsHelper.isAlertOnCooldown(this, ALERT_COOLDOWN)) {
                     Log.d("SafeShadow", "Manual SOS ignored due to cooldown")
                     return START_STICKY
                 }
                 updateNotification("🚨 SOS Triggered! Sending alert...")
                 AlertManager.sendSosAlert(this, reason = "Manual SOS")
-                android.os.Handler(mainLooper).postDelayed({
+                Handler(Looper.getMainLooper()).postDelayed({
                     if (!intentionallyStopped && PrefsHelper.isSafetyModeOn(this)) {
-                        updateNotification("Safety Mode Active 🛡️")
+                        if (PrefsHelper.isTravelActive(this)) {
+                            val dest = PrefsHelper.getTravelDestination(this)
+                            updateNotification("🚗 Travel: $dest")
+                        } else {
+                            updateNotification("Safety Mode Active 🛡️")
+                        }
                     }
                 }, 5000)
             }
         }
+
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // Directly restart service — simpler and more reliable than AlarmManager
         if (PrefsHelper.isSafetyModeOn(this)) {
             val restartIntent = Intent(applicationContext, SafetyService::class.java)
             restartIntent.setPackage(packageName)
@@ -102,33 +157,32 @@ class SafetyService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        stopShakeDetector()
+        travelModeManager?.stop()
+        travelModeManager = null
+        stopDetectors()
         if (!intentionallyStopped && PrefsHelper.isSafetyModeOn(this)) {
-            // Restart via broadcast as backup
             sendBroadcast(Intent("com.example.safeshadow.RESTART_SERVICE"))
         }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ─── Notification Channel ───────────────────────────────────────────────────
+    // ─── Notification Channel ────────────────────────────────────────────────────
 
     private fun createChannel() {
         val channel = NotificationChannel(
-            CHANNEL_ID,
-            CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_LOW  // Must NOT be IMPORTANCE_MIN
+            CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW
         ).apply {
             setSound(null, null)
             enableVibration(false)
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+        getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(channel)
     }
 
-    // ─── Notification Builder ───────────────────────────────────────────────────
+    // ─── Notification Builder ────────────────────────────────────────────────────
 
     private fun buildNotification(contentText: String): Notification {
         val openAppIntent = PendingIntent.getActivity(
@@ -138,7 +192,6 @@ class SafetyService : Service() {
             },
             PendingIntent.FLAG_IMMUTABLE
         )
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("SafeShadow")
             .setContentText(contentText)
@@ -153,17 +206,14 @@ class SafetyService : Service() {
             .build()
     }
 
-    // ─── Key fix: use startForeground NOT notificationManager.notify() ──────────
-
     private fun updateNotification(text: String) {
         currentNotificationText = text
-        // ONLY startForeground — never notificationManager.notify()
         startForeground(NOTIFICATION_ID, buildNotification(text))
     }
 
-    // ─── Shake Detection ────────────────────────────────────────────────────────
+    // ─── Sensor Detectors ────────────────────────────────────────────────────────
 
-    private fun setupShakeDetector() {
+    private fun setupDetectors() {
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 
         shakeDetector = ShakeDetector {
@@ -183,60 +233,45 @@ class SafetyService : Service() {
         }
 
         val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-
         if (accelerometer != null) {
-            // Register all three detectors on same accelerometer
-            sensorManager.registerListener(
-                shakeDetector,
-                accelerometer,
-                SensorManager.SENSOR_DELAY_GAME
-            )
-            sensorManager.registerListener(
-                fallDetector,
-                accelerometer,
-                SensorManager.SENSOR_DELAY_GAME
-            )
-            sensorManager.registerListener(
-                runningDetector,
-                accelerometer,
-                SensorManager.SENSOR_DELAY_GAME
-            )
+            sensorManager.registerListener(shakeDetector, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+            sensorManager.registerListener(fallDetector, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+            sensorManager.registerListener(runningDetector, accelerometer, SensorManager.SENSOR_DELAY_GAME)
             Log.d("SafeShadow", "All detectors registered")
         } else {
             Log.w("SafeShadow", "No accelerometer on this device")
         }
     }
 
-    private fun stopShakeDetector() {
+    private fun stopDetectors() {
         if (::sensorManager.isInitialized) {
-            sensorManager.unregisterListener(shakeDetector)
-            sensorManager.unregisterListener(fallDetector)
-            sensorManager.unregisterListener(runningDetector)
+            if (::shakeDetector.isInitialized) sensorManager.unregisterListener(shakeDetector)
+            if (::fallDetector.isInitialized) sensorManager.unregisterListener(fallDetector)
+            if (::runningDetector.isInitialized) sensorManager.unregisterListener(runningDetector)
         }
     }
 
-    private fun onShakeTriggered() {
-        val now = System.currentTimeMillis()
+    // ─── Alert Handlers ──────────────────────────────────────────────────────────
 
-        // Second layer — ignore if alert was sent too recently
-        if (now - lastAlertTime < ALERT_COOLDOWN) {
-            Log.d("SafeShadow", "Alert cooldown active — ignoring trigger")
+    private fun onShakeTriggered() {
+        if (PrefsHelper.isAlertOnCooldown(this, ALERT_COOLDOWN)) {
+            Log.d("SafeShadow", "Alert cooldown active — ignoring shake trigger")
             return
         }
-
-        lastAlertTime = now
         updateNotification("🚨 SOS Triggered! Sending alert...")
         AlertManager.sendSosAlert(this, reason = "Shake SOS")
-
-        android.os.Handler(mainLooper).postDelayed({
+        Handler(Looper.getMainLooper()).postDelayed({
             if (!intentionallyStopped && PrefsHelper.isSafetyModeOn(this)) {
-                updateNotification("Safety Mode Active 🛡️")
+                if (PrefsHelper.isTravelActive(this)) {
+                    updateNotification("🚗 Travel: ${PrefsHelper.getTravelDestination(this)}")
+                } else {
+                    updateNotification("Safety Mode Active 🛡️")
+                }
             }
         }, 5000)
     }
 
     private fun onSuspiciousEventDetected(reason: String) {
-        // Use global prefs cooldown — works across service and activity
         if (PrefsHelper.isAlertOnCooldown(this, ALERT_COOLDOWN)) return
         SafetyAlertActivity.launch(this, reason)
     }
@@ -245,10 +280,7 @@ class SafetyService : Service() {
         try {
             val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
             vibrator.vibrate(
-                VibrationEffect.createWaveform(
-                    longArrayOf(0, 400, 200, 400, 200, 400),
-                    -1
-                )
+                VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400, 200, 400), -1)
             )
         } catch (e: Exception) {
             Log.e("SafeShadow", "Vibration failed: ${e.message}")

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#DD000000">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:padding="24dp">
+
+        <!-- App name header -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🛡️ SafeShadow"
+            android:textSize="14sp"
+            android:textColor="#B71C1C"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Destination line -->
+        <TextView
+            android:id="@+id/tvTravelDestination"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📍 Destination: —"
+            android:textSize="13sp"
+            android:textColor="#555555"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Main message (reason) -->
+        <TextView
+            android:id="@+id/tvTravelAlertMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Are you safe?"
+            android:textSize="18sp"
+            android:textColor="#222222"
+            android:textStyle="bold"
+            android:layout_marginBottom="20dp" />
+
+        <!-- Countdown -->
+        <TextView
+            android:id="@+id/tvTravelCountdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Sending alert in 30 seconds..."
+            android:textSize="13sp"
+            android:textColor="#E53935"
+            android:layout_marginBottom="24dp" />
+
+        <!-- I AM SAFE button -->
+        <Button
+            android:id="@+id/btnTravelSafe"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="✅ I AM SAFE"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:backgroundTint="#388E3C"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Extend time button (conditionally visible) -->
+        <Button
+            android:id="@+id/btnTravelExtend"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="⏱ Extend +15 min"
+            android:textSize="15sp"
+            android:textColor="@android:color/white"
+            android:backgroundTint="#1565C0"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
+
+        <!-- I NEED HELP button -->
+        <Button
+            android:id="@+id/btnTravelHelp"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="🆘 I NEED HELP"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:backgroundTint="#B71C1C" />
+
+    </LinearLayout>
+
+</LinearLayout>

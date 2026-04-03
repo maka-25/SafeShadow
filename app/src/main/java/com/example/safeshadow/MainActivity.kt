@@ -5,35 +5,38 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.safeshadow.service.SafetyService
-import android.net.Uri
-import android.os.PowerManager
-import android.provider.Settings
-import androidx.appcompat.app.AlertDialog
-import com.example.safeshadow.R
 import com.example.safeshadow.ui.SetupActivity
+import com.example.safeshadow.ui.TravelModeActivity
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var btnToggleSafety: Button
     private lateinit var tvStatus: TextView
+    private lateinit var btnTravelMode: Button
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
         val allGranted = results.values.all { it }
         if (!allGranted) {
-            Toast.makeText(this,
+            Toast.makeText(
+                this,
                 "Some permissions denied — alerts may not work",
-                Toast.LENGTH_LONG).show()
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -43,6 +46,7 @@ class MainActivity : AppCompatActivity() {
 
         btnToggleSafety = findViewById(R.id.btnToggleSafety)
         tvStatus = findViewById(R.id.tvStatus)
+        btnTravelMode = findViewById(R.id.btnTravelMode)
 
         requestAllPermissions()
         requestBatteryOptimizationExemption()
@@ -55,63 +59,31 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // TEMPORARY TEST BUTTON
-        val btnTestShake = findViewById<Button>(R.id.btnTestShake)
-        btnTestShake.setOnClickListener {
+        // ── Travel Mode ────────────────────────────────────────────────────────
+        btnTravelMode.setOnClickListener {
             if (!isSafetyServiceRunning()) {
                 Toast.makeText(
                     this,
-                    "Turn ON Safety Mode first before testing",
-                    Toast.LENGTH_SHORT
+                    "Please turn ON Safety Mode before using Travel Mode",
+                    Toast.LENGTH_LONG
                 ).show()
                 return@setOnClickListener
             }
-            val intent = Intent(this, SafetyService::class.java).apply {
-                action = SafetyService.ACTION_TEST_SHAKE
-            }
-            startService(intent)
+            startActivity(Intent(this, TravelModeActivity::class.java))
         }
 
-        // TEMPORARY TEST BUTTONS
-        findViewById<Button>(R.id.btnTestFall).setOnClickListener {
-            if (!isSafetyServiceRunning()) {
-                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val intent = Intent(this, SafetyService::class.java).apply {
-                action = SafetyService.ACTION_TEST_FALL
-            }
-            startService(intent)
-        }
-
-        findViewById<Button>(R.id.btnTestRunning).setOnClickListener {
-            if (!isSafetyServiceRunning()) {
-                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val intent = Intent(this, SafetyService::class.java).apply {
-                action = SafetyService.ACTION_TEST_RUNNING
-            }
-            startService(intent)
-        }
-
+        // ── Contacts ───────────────────────────────────────────────────────────
         findViewById<Button>(R.id.btnSetupContacts).setOnClickListener {
             startActivity(Intent(this, SetupActivity::class.java))
         }
 
+        // ── Manual SOS ────────────────────────────────────────────────────────
         val btnSOS = findViewById<Button>(R.id.btnSOS)
-
         btnSOS.setOnClickListener {
-
             if (!isSafetyServiceRunning()) {
-                Toast.makeText(
-                    this,
-                    "Turn ON Safety Mode first",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             if (PrefsHelper.isAlertOnCooldown(this)) {
                 Toast.makeText(
                     this,
@@ -120,7 +92,6 @@ class MainActivity : AppCompatActivity() {
                 ).show()
                 return@setOnClickListener
             }
-
             AlertDialog.Builder(this)
                 .setTitle("Send SOS Alert?")
                 .setMessage(
@@ -128,20 +99,45 @@ class MainActivity : AppCompatActivity() {
                             "Do you want to continue?"
                 )
                 .setPositiveButton("YES, SEND") { _, _ ->
-
                     val intent = Intent(this, SafetyService::class.java).apply {
                         action = SafetyService.ACTION_SOS_TRIGGERED
                     }
                     startService(intent)
-
-                    Toast.makeText(
-                        this,
-                        "SOS Alert Sent",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this, "SOS Alert Sent", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("CANCEL", null)
                 .show()
+        }
+
+        // ── TEMPORARY TEST BUTTONS (remove before release) ────────────────────
+        findViewById<Button>(R.id.btnTestShake).setOnClickListener {
+            if (!isSafetyServiceRunning()) {
+                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            startService(Intent(this, SafetyService::class.java).apply {
+                action = SafetyService.ACTION_TEST_SHAKE
+            })
+        }
+
+        findViewById<Button>(R.id.btnTestFall).setOnClickListener {
+            if (!isSafetyServiceRunning()) {
+                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            startService(Intent(this, SafetyService::class.java).apply {
+                action = SafetyService.ACTION_TEST_FALL
+            })
+        }
+
+        findViewById<Button>(R.id.btnTestRunning).setOnClickListener {
+            if (!isSafetyServiceRunning()) {
+                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            startService(Intent(this, SafetyService::class.java).apply {
+                action = SafetyService.ACTION_TEST_RUNNING
+            })
         }
     }
 
@@ -150,55 +146,80 @@ class MainActivity : AppCompatActivity() {
         updateUI()
     }
 
-    private fun isSafetyServiceRunning(): Boolean {
-        return PrefsHelper.isSafetyModeOn(this)
-    }
+    // ─── Safety service helpers ──────────────────────────────────────────────────
+
+    private fun isSafetyServiceRunning(): Boolean = PrefsHelper.isSafetyModeOn(this)
 
     private fun startSafetyService() {
+        val hasLocation = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
 
-        val hasLocationPermission =
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+        val hasSms = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.SEND_SMS
+        ) == PackageManager.PERMISSION_GRANTED
 
-        if (!hasLocationPermission) {
+        if (!hasLocation || !hasSms) {
             Toast.makeText(
                 this,
-                "Please grant location permission first",
-                Toast.LENGTH_SHORT
+                "Please grant Location and SMS permissions first",
+                Toast.LENGTH_LONG
             ).show()
             requestAllPermissions()
             return
         }
 
-        if (isSafetyServiceRunning()) {
-            updateUI()
+        if (PrefsHelper.getContactNumbers(this).isEmpty()) {
+            Toast.makeText(
+                this,
+                "Please add at least one emergency contact",
+                Toast.LENGTH_LONG
+            ).show()
             return
         }
 
+        if (isSafetyServiceRunning()) { updateUI(); return }
+
         PrefsHelper.setSafetyModeOn(this, true)
-
-        val intent = Intent(this, SafetyService::class.java)
-        ContextCompat.startForegroundService(this, intent)
-
+        ContextCompat.startForegroundService(this, Intent(this, SafetyService::class.java))
         Toast.makeText(this, "Safety Mode ON", Toast.LENGTH_SHORT).show()
         updateUI()
     }
 
     private fun stopSafetyService() {
-        if (!isSafetyServiceRunning()) {
-            updateUI()
+        if (!isSafetyServiceRunning()) { updateUI(); return }
+
+        // If travel is active, confirm before stopping
+        if (PrefsHelper.isTravelActive(this)) {
+            AlertDialog.Builder(this)
+                .setTitle("Stop Safety Mode?")
+                .setMessage(
+                    "Travel Mode is currently active.\n\n" +
+                            "Turning off Safety Mode will also stop Travel Mode monitoring.\n\n" +
+                            "Are you sure?"
+                )
+                .setPositiveButton("YES, STOP") { _, _ ->
+                    PrefsHelper.stopTravel(this)
+                    doStopSafetyService()
+                }
+                .setNegativeButton("CANCEL", null)
+                .show()
             return
         }
+
+        doStopSafetyService()
+    }
+
+    private fun doStopSafetyService() {
         PrefsHelper.setSafetyModeOn(this, false)
-        val intent = Intent(this, SafetyService::class.java).apply {
+        startService(Intent(this, SafetyService::class.java).apply {
             action = SafetyService.ACTION_STOP_SERVICE
-        }
-        startService(intent)
+        })
         Toast.makeText(this, "Safety Mode OFF", Toast.LENGTH_SHORT).show()
         updateUI()
     }
+
+    // ─── UI update ───────────────────────────────────────────────────────────────
 
     private fun updateUI() {
         if (isSafetyServiceRunning()) {
@@ -206,13 +227,33 @@ class MainActivity : AppCompatActivity() {
             btnToggleSafety.text = "Turn OFF Safety Mode"
             btnToggleSafety.backgroundTintList =
                 ColorStateList.valueOf(Color.parseColor("#388E3C"))
+
+            // Show travel mode status in button
+            if (PrefsHelper.isTravelActive(this)) {
+                val dest = PrefsHelper.getTravelDestination(this)
+                btnTravelMode.text = "🚗 Travel Active: $dest"
+                btnTravelMode.backgroundTintList =
+                    ColorStateList.valueOf(Color.parseColor("#1565C0"))
+            } else {
+                btnTravelMode.text = "🗺️ Start Travel Mode"
+                btnTravelMode.backgroundTintList =
+                    ColorStateList.valueOf(Color.parseColor("#0288D1"))
+            }
+            btnTravelMode.isEnabled = true
+
         } else {
             tvStatus.text = "🔴 Safety Mode: OFF"
             btnToggleSafety.text = "Turn ON Safety Mode"
             btnToggleSafety.backgroundTintList =
                 ColorStateList.valueOf(Color.parseColor("#B71C1C"))
+            btnTravelMode.text = "🗺️ Start Travel Mode"
+            btnTravelMode.isEnabled = false
+            btnTravelMode.backgroundTintList =
+                ColorStateList.valueOf(Color.parseColor("#9E9E9E"))
         }
     }
+
+    // ─── Permissions ─────────────────────────────────────────────────────────────
 
     private fun requestAllPermissions() {
         val permissions = mutableListOf(
@@ -258,15 +299,12 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("OK") { _, _ ->
                     PrefsHelper.setBatteryOptimizationAsked(this)
                     try {
-                        val intent = Intent(
-                            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                        ).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
-                        startActivity(intent)
-                    } catch (e: Exception) {
-                        // fail silently
-                    }
+                        startActivity(
+                            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                        )
+                    } catch (e: Exception) { /* fail silently */ }
                 }
                 .setNegativeButton("Skip") { _, _ ->
                     PrefsHelper.setBatteryOptimizationAsked(this)

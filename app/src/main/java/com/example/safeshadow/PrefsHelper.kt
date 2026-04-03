@@ -14,7 +14,6 @@ object PrefsHelper {
 
     // ─── Contacts ──────────────────────────────────────────────────────────────
 
-    // Save list of Contact objects as "Name|Phone,Name|Phone"
     fun saveContacts(context: Context, contacts: List<Contact>) {
         val raw = contacts.joinToString(",") { "${it.name}|${it.phone}" }
         prefs(context).edit().putString(KEY_CONTACTS, raw).apply()
@@ -30,7 +29,6 @@ object PrefsHelper {
         }
     }
 
-    // Returns just phone numbers for SMS sending
     fun getContactNumbers(context: Context): List<String> =
         getContacts(context).map { it.phone }
 
@@ -64,6 +62,91 @@ object PrefsHelper {
         val last = prefs(context).getLong("last_alert_time", 0L)
         return System.currentTimeMillis() - last < cooldownMs
     }
+
+    // ─── Travel Mode ───────────────────────────────────────────────────────────
+
+    /** Save travel session when user starts travel mode */
+    fun startTravel(
+        context: Context,
+        destination: String,
+        etaMinutes: Int,
+        destLat: Double,
+        destLng: Double
+    ) {
+        val startTime = System.currentTimeMillis()
+        val etaEndTime = startTime + (etaMinutes * 60 * 1000L)
+        prefs(context).edit()
+            .putBoolean("travel_active", true)
+            .putString("travel_destination", destination)
+            .putLong("travel_start_time", startTime)
+            .putLong("travel_eta_end_time", etaEndTime)
+            .putFloat("travel_dest_lat", destLat.toFloat())
+            .putFloat("travel_dest_lng", destLng.toFloat())
+            .putInt("travel_extensions_used", 0)
+            .apply()
+    }
+
+    /** Extend ETA by given minutes (max 3 extensions enforced in UI) */
+    fun extendTravel(context: Context, extraMinutes: Int) {
+        val current = prefs(context).getLong("travel_eta_end_time", System.currentTimeMillis())
+        val extensions = prefs(context).getInt("travel_extensions_used", 0)
+        prefs(context).edit()
+            .putLong("travel_eta_end_time", current + (extraMinutes * 60 * 1000L))
+            .putInt("travel_extensions_used", extensions + 1)
+            .apply()
+    }
+
+    /** Stop / clear travel session */
+    fun stopTravel(context: Context) {
+        prefs(context).edit()
+            .putBoolean("travel_active", false)
+            .putString("travel_destination", "")
+            .putLong("travel_start_time", 0L)
+            .putLong("travel_eta_end_time", 0L)
+            .putFloat("travel_dest_lat", 0f)
+            .putFloat("travel_dest_lng", 0f)
+            .putInt("travel_extensions_used", 0)
+            .apply()
+    }
+
+    fun isTravelActive(context: Context): Boolean =
+        prefs(context).getBoolean("travel_active", false)
+
+    fun getTravelDestination(context: Context): String =
+        prefs(context).getString("travel_destination", "Unknown") ?: "Unknown"
+
+    fun getTravelEtaEndTime(context: Context): Long =
+        prefs(context).getLong("travel_eta_end_time", 0L)
+
+    fun getTravelStartTime(context: Context): Long =
+        prefs(context).getLong("travel_start_time", 0L)
+
+    fun getTravelDestLat(context: Context): Double =
+        prefs(context).getFloat("travel_dest_lat", 0f).toDouble()
+
+    fun getTravelDestLng(context: Context): Double =
+        prefs(context).getFloat("travel_dest_lng", 0f).toDouble()
+
+    fun getTravelExtensionsUsed(context: Context): Int =
+        prefs(context).getInt("travel_extensions_used", 0)
+
+    /** Track last known location for stillness detection */
+    fun saveLastKnownLocation(context: Context, lat: Double, lng: Double, timeMs: Long) {
+        prefs(context).edit()
+            .putFloat("last_loc_lat", lat.toFloat())
+            .putFloat("last_loc_lng", lng.toFloat())
+            .putLong("last_loc_time", timeMs)
+            .apply()
+    }
+
+    fun getLastKnownLat(context: Context): Double =
+        prefs(context).getFloat("last_loc_lat", 0f).toDouble()
+
+    fun getLastKnownLng(context: Context): Double =
+        prefs(context).getFloat("last_loc_lng", 0f).toDouble()
+
+    fun getLastKnownLocTime(context: Context): Long =
+        prefs(context).getLong("last_loc_time", 0L)
 }
 
 // Simple data class for a contact

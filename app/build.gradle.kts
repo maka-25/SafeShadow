@@ -55,6 +55,12 @@ dependencies {
     // Coroutines (for async tasks)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
+    // OSMDroid — free OpenStreetMap for Android, no API key needed
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+
+    // OSMDroid bonus: search/geocoding via Nominatim (place name → coordinates)
+    implementation("org.osmdroid:osmdroid-wms:6.1.18")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

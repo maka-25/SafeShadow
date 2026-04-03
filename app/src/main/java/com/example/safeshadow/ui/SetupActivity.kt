@@ -2,17 +2,14 @@ package com.example.safeshadow.ui
 
 import android.os.Bundle
 import android.text.InputFilter
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
-import android.widget.Toast
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import com.example.safeshadow.Contact
 import com.example.safeshadow.PrefsHelper
 import com.example.safeshadow.R
@@ -21,6 +18,7 @@ class SetupActivity : AppCompatActivity() {
 
     private lateinit var etName: EditText
     private lateinit var etPhone: EditText
+    private lateinit var spinnerCountry: Spinner
     private lateinit var btnAdd: Button
     private lateinit var btnDone: Button
     private lateinit var rvContacts: RecyclerView
@@ -31,26 +29,35 @@ class SetupActivity : AppCompatActivity() {
 
     private val MAX_CONTACTS = 5
 
+    data class Country(val name: String, val code: String, val length: Int)
+
+    private val countries = listOf(
+        Country("India (+91)", "+91", 10),
+        Country("USA (+1)", "+1", 10),
+        Country("UK (+44)", "+44", 10),
+        Country("Australia (+61)", "+61", 9)
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setup)
 
         etName     = findViewById(R.id.etContactName)
         etPhone    = findViewById(R.id.etContactPhone)
+        spinnerCountry = findViewById(R.id.spinnerCountry)
         btnAdd     = findViewById(R.id.btnAddContact)
         btnDone    = findViewById(R.id.btnDone)
         rvContacts = findViewById(R.id.rvContacts)
         tvCount    = findViewById(R.id.tvContactCount)
 
-        // Cap phone field at 13 characters while typing
-        etPhone.filters = arrayOf(InputFilter.LengthFilter(13))
+        setupCountrySpinner()
 
-        // Load saved contacts
         contacts.addAll(PrefsHelper.getContacts(this))
 
         adapter = ContactAdapter(contacts) { position ->
             showDeleteConfirmation(position)
         }
+
         rvContacts.layoutManager = LinearLayoutManager(this)
         rvContacts.adapter = adapter
 
@@ -65,59 +72,96 @@ class SetupActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupCountrySpinner() {
+        val adapterSpinner = object : ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_spinner_item,
+            countries.map { it.name }
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val textView = super.getView(position, convertView, parent) as TextView
+                textView.text = countries[position].code   // show only +91
+                textView.setTextColor(android.graphics.Color.WHITE)
+                return textView
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val textView = super.getDropDownView(position, convertView, parent) as TextView
+                textView.text = countries[position].name   // show India (+91)
+                textView.setTextColor(android.graphics.Color.WHITE)
+                textView.setBackgroundColor(android.graphics.Color.parseColor("#333333"))
+                return textView
+            }
+        }
+        spinnerCountry.adapter = adapterSpinner
+
+        spinnerCountry.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selected = countries[position]
+
+                etPhone.filters = arrayOf(
+                    InputFilter.LengthFilter(selected.length),
+                    InputFilter { source, _, _, _, _, _ ->
+                        if (source.all { it.isDigit() }) source else ""
+                    }
+                )
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
     private fun addContact() {
         val name  = etName.text.toString().trim()
         val phone = etPhone.text.toString().trim()
+        val selectedCountry = countries[spinnerCountry.selectedItemPosition]
 
-        // Strip + and spaces to count actual digits
-        val digitsOnly = phone.replace("+", "").replace(" ", "")
+        val digitsOnly = phone.filter { it.isDigit() }
 
         when {
-            // Name empty check
             name.isEmpty() -> {
                 etName.error = "Enter a name"
                 return
             }
-            // Name must have at least one letter — blocks pure numbers
+
             !name.any { it.isLetter() } -> {
                 etName.error = "Name must contain at least one letter"
                 return
             }
-            // Phone empty check
+
             phone.isEmpty() -> {
                 etPhone.error = "Enter a phone number"
                 return
             }
-            // Minimum 10 digits
-            digitsOnly.length < 10 -> {
-                etPhone.error = "Number too short — minimum 10 digits"
+
+            digitsOnly.length != selectedCountry.length -> {
+                etPhone.error = "Enter valid ${selectedCountry.length}-digit number"
                 return
             }
-            // Maximum 12 digits (91XXXXXXXXXX)
-            digitsOnly.length > 12 -> {
-                etPhone.error = "Number too long — maximum 12 digits"
-                return
-            }
-            // Max contacts reached
+
             contacts.size >= MAX_CONTACTS -> {
-                Toast.makeText(this,
+                Toast.makeText(
+                    this,
                     "Maximum $MAX_CONTACTS contacts allowed",
-                    Toast.LENGTH_SHORT).show()
+                    Toast.LENGTH_SHORT
+                ).show()
                 return
             }
-            // Duplicate phone check
-            contacts.any { it.phone == phone } -> {
+
+            contacts.any { it.phone == selectedCountry.code + digitsOnly } -> {
                 etPhone.error = "This number is already added"
                 return
             }
-            // Duplicate name check — case insensitive
+
             contacts.any { it.name.equals(name, ignoreCase = true) } -> {
                 etName.error = "A contact with this name already exists"
                 return
             }
         }
 
-        val contact = Contact(name, phone)
+        val fullNumber = selectedCountry.code + digitsOnly
+
+        val contact = Contact(name, fullNumber)
         contacts.add(contact)
         adapter.notifyItemInserted(contacts.size - 1)
 
@@ -129,25 +173,17 @@ class SetupActivity : AppCompatActivity() {
     }
 
     private fun showDeleteConfirmation(position: Int) {
-        // Guard against invalid position
         if (position < 0 || position >= contacts.size) return
 
         val contact = contacts[position]
+
         AlertDialog.Builder(this)
             .setTitle("Delete Contact")
-            .setMessage(
-                "Remove ${contact.name} (${contact.phone})\n" +
-                        "from emergency contacts?"
-            )
+            .setMessage("Remove ${contact.name} (${contact.phone})?")
             .setPositiveButton("Delete") { _, _ ->
                 contacts.removeAt(position)
                 adapter.notifyItemRemoved(position)
                 updateCount()
-                Toast.makeText(
-                    this,
-                    "${contact.name} removed",
-                    Toast.LENGTH_SHORT
-                ).show()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -156,8 +192,6 @@ class SetupActivity : AppCompatActivity() {
     private fun updateCount() {
         tvCount.text = "${contacts.size} / $MAX_CONTACTS contacts added"
     }
-
-    // ─── Adapter ───────────────────────────────────────────────────────────────
 
     inner class ContactAdapter(
         private val items: MutableList<Contact>,
@@ -179,10 +213,9 @@ class SetupActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val contact = items[position]
-            holder.name.text  = contact.name
+            holder.name.text = contact.name
             holder.phone.text = contact.phone
-            // Use first letter that is a letter — safe for names with numbers
-            holder.icon.text  = contact.name.first { it.isLetter() }.uppercase()
+            holder.icon.text = contact.name.first { it.isLetter() }.uppercase()
             holder.delete.setOnClickListener { onDelete(holder.adapterPosition) }
         }
 
