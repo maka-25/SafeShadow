@@ -100,7 +100,6 @@ class MainActivity : AppCompatActivity() {
                     startService(Intent(this, SafetyService::class.java).apply {
                         action = SafetyService.ACTION_SOS_TRIGGERED
                     })
-                    Toast.makeText(this, "SOS Alert Sent", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("CANCEL", null)
                 .show()

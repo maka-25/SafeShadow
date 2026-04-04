@@ -178,7 +178,7 @@ object PrefsHelper {
     }
 
     fun isShakeConfirmationEnabled(context: Context): Boolean =
-        prefs(context).getBoolean("setting_shake_confirmation", false)
+        prefs(context).getBoolean("setting_shake_confirmation", true)
 
     // Alert cooldown in seconds — 15 | 30 | 60 | 120
     fun setAlertCooldownSeconds(context: Context, seconds: Int) {

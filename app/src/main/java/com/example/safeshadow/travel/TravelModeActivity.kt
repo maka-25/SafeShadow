@@ -8,6 +8,7 @@ import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -33,20 +34,12 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-/**
- * TravelModeActivity
- *
- * Lets user:
- * 1. Search for a destination (Nominatim geocoding — free, no API key)
- * 2. OR tap on the OSMDroid map to drop a pin
- * 3. Select ETA from presets (15/30/60/90/120 min) or type a custom value
- * 4. Start Travel Mode
- *
- * If travel is already active, shows the active travel status with a Stop button.
- */
 class TravelModeActivity : AppCompatActivity() {
 
     companion object {
@@ -56,14 +49,12 @@ class TravelModeActivity : AppCompatActivity() {
         private const val INDIA_LNG = 78.9629
     }
 
-    // Map
     private lateinit var mapView: MapView
     private var destinationMarker: Marker? = null
     private var selectedLat: Double = 0.0
     private var selectedLng: Double = 0.0
     private var selectedDestinationName: String = ""
 
-    // UI
     private lateinit var etSearch: EditText
     private lateinit var tvSelectedDestination: TextView
     private lateinit var radioGroup: RadioGroup
@@ -77,15 +68,17 @@ class TravelModeActivity : AppCompatActivity() {
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val mainHandler = Handler(Looper.getMainLooper())
-
-    // Debounce search — don't fire on every keystroke
     private var searchRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // OSMDroid requires this before MapView is created
-        Configuration.getInstance().userAgentValue = packageName
+        // OSMDroid config — must be set before MapView is created
+        Configuration.getInstance().apply {
+            userAgentValue = packageName
+            // Increase tile cache for smoother map experience
+            tileDownloadMaxQueueSize = 6
+        }
 
         setContentView(R.layout.activity_travel_mode)
 
@@ -104,29 +97,47 @@ class TravelModeActivity : AppCompatActivity() {
     // ─── View binding ────────────────────────────────────────────────────────────
 
     private fun bindViews() {
-        mapView = findViewById(R.id.mapView)
-        etSearch = findViewById(R.id.etDestinationSearch)
-        tvSelectedDestination = findViewById(R.id.tvSelectedDestination)
-        radioGroup = findViewById(R.id.radioGroupEta)
-        etCustomEta = findViewById(R.id.etCustomEta)
-        btnStartTravel = findViewById(R.id.btnStartTravel)
-        layoutActive = findViewById(R.id.layoutTravelActive)
-        layoutSetup = findViewById(R.id.layoutTravelSetup)
-        tvActiveDest = findViewById(R.id.tvActiveDest)
-        tvActiveEta = findViewById(R.id.tvActiveEta)
-        btnStopTravel = findViewById(R.id.btnStopTravel)
+        mapView              = findViewById(R.id.mapView)
+        etSearch             = findViewById(R.id.etDestinationSearch)
+        tvSelectedDestination= findViewById(R.id.tvSelectedDestination)
+        radioGroup           = findViewById(R.id.radioGroupEta)
+        etCustomEta          = findViewById(R.id.etCustomEta)
+        btnStartTravel       = findViewById(R.id.btnStartTravel)
+        layoutActive         = findViewById(R.id.layoutTravelActive)
+        layoutSetup          = findViewById(R.id.layoutTravelSetup)
+        tvActiveDest         = findViewById(R.id.tvActiveDest)
+        tvActiveEta          = findViewById(R.id.tvActiveEta)
+        btnStopTravel        = findViewById(R.id.btnStopTravel)
     }
 
     // ─── Map setup ───────────────────────────────────────────────────────────────
 
     private fun setupMap() {
-        mapView.setTileSource(TileSourceFactory.MAPNIK)  // OpenStreetMap tiles
+        mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
 
-        // Default center: India
         val startPoint = GeoPoint(INDIA_LAT, INDIA_LNG)
         mapView.controller.setZoom(DEFAULT_ZOOM)
         mapView.controller.setCenter(startPoint)
+
+        // ── Fix: tell the parent ScrollView to stop intercepting touch events
+        // when the user's finger is on the map.
+        // Without this, ScrollView steals all vertical touch events and the
+        // map cannot be panned or zoomed.
+        mapView.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    // Tell ScrollView: hands off — map owns this touch
+                    layoutSetup.requestDisallowInterceptTouchEvent(true)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // Touch released — let ScrollView resume normal behaviour
+                    layoutSetup.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+            // Let MapView handle the event itself
+            v.onTouchEvent(event)
+        }
 
         // Tap-to-drop-pin overlay
         val tapReceiver = object : MapEventsReceiver {
@@ -145,7 +156,6 @@ class TravelModeActivity : AppCompatActivity() {
         etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                // Debounce: wait 800ms after user stops typing
                 searchRunnable?.let { mainHandler.removeCallbacks(it) }
                 val query = s?.toString()?.trim() ?: return
                 if (query.length < 3) return
@@ -169,8 +179,41 @@ class TravelModeActivity : AppCompatActivity() {
         scope.launch {
             try {
                 val encoded = URLEncoder.encode(query, "UTF-8")
-                val url = "https://nominatim.openstreetmap.org/search?q=$encoded&format=json&limit=1"
-                val response = URL(url).readText()
+                val urlString =
+                    "https://nominatim.openstreetmap.org/search?q=$encoded&format=json&limit=1"
+
+                // ── Fix: Nominatim REQUIRES a proper User-Agent header.
+                // Java's URL.readText() sends a generic Java agent which Nominatim
+                // blocks — causing "no internet" errors even on a working connection.
+                // We use HttpURLConnection to set the header correctly.
+                val connection = URL(urlString).openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    // Nominatim policy: identify your app in User-Agent
+                    setRequestProperty("User-Agent", "SafeShadow/$packageName")
+                    setRequestProperty("Accept-Language", "en")
+                    connectTimeout = 8000
+                    readTimeout = 8000
+                }
+
+                val responseCode = connection.responseCode
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    Log.e(TAG, "Nominatim returned HTTP $responseCode")
+                    mainHandler.post {
+                        Toast.makeText(
+                            this@TravelModeActivity,
+                            "Search service unavailable. Try again.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    connection.disconnect()
+                    return@launch
+                }
+
+                val response = BufferedReader(InputStreamReader(connection.inputStream))
+                    .readText()
+                connection.disconnect()
+
                 val jsonArray = JSONArray(response)
 
                 if (jsonArray.length() == 0) {
@@ -188,7 +231,7 @@ class TravelModeActivity : AppCompatActivity() {
                 val lat = result.getDouble("lat")
                 val lng = result.getDouble("lon")
                 val displayName = result.getString("display_name")
-                    .split(",").take(2).joinToString(", ")  // Show short version
+                    .split(",").take(2).joinToString(", ")
 
                 mainHandler.post {
                     val point = GeoPoint(lat, lng)
@@ -214,7 +257,6 @@ class TravelModeActivity : AppCompatActivity() {
     // ─── Marker placement ────────────────────────────────────────────────────────
 
     private fun placeMarker(point: GeoPoint, name: String) {
-        // Remove previous marker
         destinationMarker?.let { mapView.overlays.remove(it) }
 
         val marker = Marker(mapView).apply {
@@ -241,7 +283,6 @@ class TravelModeActivity : AppCompatActivity() {
     // ─── ETA selection ───────────────────────────────────────────────────────────
 
     private fun setupEtaSelector() {
-        // When a preset is selected, hide custom input
         radioGroup.setOnCheckedChangeListener { _, checkedId ->
             if (checkedId == R.id.radioCustomEta) {
                 etCustomEta.visibility = View.VISIBLE
@@ -252,24 +293,21 @@ class TravelModeActivity : AppCompatActivity() {
                 hideKeyboard()
             }
         }
-
         btnStartTravel.setOnClickListener { onStartTravelClicked() }
     }
 
     private fun getSelectedEtaMinutes(): Int? {
         return when (radioGroup.checkedRadioButtonId) {
-            R.id.radio15min -> 15
-            R.id.radio30min -> 30
-            R.id.radio60min -> 60
-            R.id.radio90min -> 90
+            R.id.radio15min  -> 15
+            R.id.radio30min  -> 30
+            R.id.radio60min  -> 60
+            R.id.radio90min  -> 90
             R.id.radio120min -> 120
             R.id.radioCustomEta -> {
                 val custom = etCustomEta.text.toString().trim().toIntOrNull()
                 if (custom == null || custom < 1 || custom > 480) {
                     Toast.makeText(
-                        this,
-                        "Enter a valid time between 1 and 480 minutes",
-                        Toast.LENGTH_SHORT
+                        this, "Enter a valid time between 1 and 480 minutes", Toast.LENGTH_SHORT
                     ).show()
                     null
                 } else custom
@@ -295,7 +333,6 @@ class TravelModeActivity : AppCompatActivity() {
 
         val etaMinutes = getSelectedEtaMinutes() ?: return
 
-        // Save travel state
         PrefsHelper.startTravel(
             context = this,
             destination = selectedDestinationName,
@@ -304,18 +341,11 @@ class TravelModeActivity : AppCompatActivity() {
             destLng = selectedLng
         )
 
-        // Tell SafetyService to start TravelModeManager
-        val intent = Intent(this, SafetyService::class.java).apply {
+        startService(Intent(this, SafetyService::class.java).apply {
             action = SafetyService.ACTION_START_TRAVEL
-        }
-        startService(intent)
+        })
 
-        Toast.makeText(
-            this,
-            "Travel Mode started! Stay safe 🛡️",
-            Toast.LENGTH_SHORT
-        ).show()
-
+        Toast.makeText(this, "Travel Mode started! Stay safe 🛡️", Toast.LENGTH_SHORT).show()
         finish()
     }
 
@@ -334,10 +364,9 @@ class TravelModeActivity : AppCompatActivity() {
 
         btnStopTravel.setOnClickListener {
             PrefsHelper.stopTravel(this)
-            val intent = Intent(this, SafetyService::class.java).apply {
+            startService(Intent(this, SafetyService::class.java).apply {
                 action = SafetyService.ACTION_STOP_TRAVEL
-            }
-            startService(intent)
+            })
             Toast.makeText(this, "Travel Mode stopped", Toast.LENGTH_SHORT).show()
             finish()
         }

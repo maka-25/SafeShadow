@@ -6,15 +6,32 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import kotlin.math.sqrt
 
+/**
+ * RunningDetector
+ *
+ * Detects rhythmic running/panic-running movement.
+ *
+ * Key fix: upper G limit tightened to 2.5G (was 3.2G).
+ * Shaking produces 3.0G+ so there is now a clean gap between
+ * running range (1.5–2.5G) and shake range (3.0G+).
+ * This prevents shake events from being counted as running steps.
+ *
+ * Also: if a high-G spike (>2.8G) is seen, the step counter resets.
+ * This suppresses running detection during active shaking.
+ */
 class RunningDetector(
     private val onRunningDetected: () -> Unit
 ) : SensorEventListener {
 
     companion object {
-        private const val RUNNING_MIN_G = 1.5f       // Min G for running step
-        private const val RUNNING_MAX_G = 3.2f       // Max G — above this is shake/fall
-        private const val STEP_MIN_INTERVAL = 200L   // Min ms between steps
-        private const val STEP_MAX_INTERVAL = 800L   // Max ms between steps
+        private const val RUNNING_MIN_G = 1.5f       // Min G for a running step
+        private const val RUNNING_MAX_G = 2.5f       // Max G — above this is shake territory
+
+        // If G exceeds this, assume shake is happening — reset running state
+        private const val SHAKE_SUPPRESSION_THRESHOLD = 2.8f
+
+        private const val STEP_MIN_INTERVAL = 200L   // Min ms between steps (very fast run)
+        private const val STEP_MAX_INTERVAL = 800L   // Max ms between steps (slow jog)
         private const val STEPS_TO_CONFIRM = 12      // Steps needed to confirm running
         private const val STEP_RESET_TIME = 3000L    // Reset if no step for 3 seconds
         private const val COOLDOWN = 60000L          // 1 min cooldown after trigger
@@ -24,7 +41,6 @@ class RunningDetector(
     private var lastStepTime = 0L
     private var lastTriggerTime = 0L
     private var lastPeakTime = 0L
-    private var lastGForce = 0f
     private var isPeak = false
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -39,6 +55,15 @@ class RunningDetector(
 
         // Respect cooldown
         if (now - lastTriggerTime < COOLDOWN) return
+
+        // Shake suppression — if G is very high, reset running state entirely
+        // This means shaking won't accidentally push us to STEPS_TO_CONFIRM
+        if (gForce > SHAKE_SUPPRESSION_THRESHOLD) {
+            stepCount = 0
+            lastPeakTime = 0L
+            isPeak = false
+            return
+        }
 
         // Reset step count if too much time passed since last step
         if (now - lastStepTime > STEP_RESET_TIME && stepCount > 0) {
@@ -65,13 +90,16 @@ class RunningDetector(
                         lastPeakTime = 0L
                         onRunningDetected()
                     }
+                } else if (timeSinceLastPeak > STEP_MAX_INTERVAL) {
+                    // Gap too long — not a consistent running pattern, reset
+                    stepCount = 0
+                    lastPeakTime = now
+                    isPeak = true
                 }
             }
         } else {
             isPeak = false
         }
-
-        lastGForce = gForce
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
