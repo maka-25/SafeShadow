@@ -1,29 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#1A1A1A">
+    android:background="?android:attr/colorBackground">
 
-    <!-- Toolbar with gear icon -->
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="#B71C1C"
-        android:elevation="4dp">
+        android:layout_height="72dp"
+        android:background="?attr/colorPrimary"
+        android:elevation="6dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:gravity="center_vertical">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🛡️ SafeShadow"
-            android:textSize="18sp"
+            android:text="SafeShadow"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF" />
+            android:textColor="?attr/colorOnPrimary" />
 
     </androidx.appcompat.widget.Toolbar>
 
-    <!-- Rest of the screen — scrollable so it fits small phones too -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -33,99 +37,102 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center"
-            android:padding="24dp">
+            android:padding="20dp">
 
             <TextView
-                android:id="@+id/tvSubtitle"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Your personal safety companion"
+                android:text="Stay protected every day"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnBackground"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Background monitoring, quick alerts, and contact safety made simple."
                 android:textSize="14sp"
-                android:textColor="#AAAAAA"
-                android:layout_marginBottom="32dp"
-                android:layout_marginTop="16dp"/>
+                android:textColor="?attr/colorOnBackground"
+                android:alpha="0.82"
+                android:layout_marginBottom="20dp" />
 
-            <TextView
-                android:id="@+id/tvStatus"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="🔴 Safety Mode: OFF"
-                android:textSize="18sp"
-                android:textColor="#FFFFFF"
-                android:layout_marginBottom="24dp"/>
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:background="@drawable/bg_card"
+                android:layout_marginBottom="24dp">
 
-            <Button
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🔴 Safety Mode: OFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface"
+                    android:layout_marginBottom="10dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Your safety status is updated in real time. Use the controls below to manage detection and alerts."
+                    android:textSize="14sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:alpha="0.82" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnToggleSafety"
-                android:layout_width="240dp"
-                android:layout_height="60dp"
-                android:text="Turn ON Safety Mode"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Enable Safety Mode"
                 android:textSize="16sp"
-                android:backgroundTint="#B71C1C"
-                android:textColor="#FFFFFF"/>
+                android:textAllCaps="false"
+                app:backgroundTint="?attr/colorPrimary"
+                app:cornerRadius="12dp" />
 
-            <Button
-                android:id="@+id/btnSetupContacts"
-                android:layout_width="240dp"
-                android:layout_height="60dp"
-                android:layout_marginTop="12dp"
-                android:text="Manage Contacts"
-                android:textSize="16sp"
-                android:backgroundTint="#333333"
-                android:textColor="#FFFFFF"/>
-
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnTravelMode"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="🗺️ Start Travel Mode"
+                android:text="Start Travel Mode"
                 android:textSize="16sp"
-                android:textColor="@android:color/white"
-                android:backgroundTint="#0288D1"
-                android:layout_marginTop="8dp"
-                android:enabled="false" />
+                android:textAllCaps="false"
+                app:backgroundTint="?attr/colorInfo"
+                app:cornerRadius="12dp"
+                android:layout_marginTop="16dp" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSetupContacts"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Manage Emergency Contacts"
+                android:textSize="16sp"
+                android:textAllCaps="false"
+                app:backgroundTint="?attr/colorSecondary"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp"
+                app:cornerRadius="12dp"
+                android:layout_marginTop="16dp" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSOS"
-                android:layout_width="240dp"
-                android:layout_height="70dp"
-                android:layout_marginTop="20dp"
-                android:text="🚨 SOS"
-                android:textSize="20sp"
+                android:layout_width="90dp"
+                android:layout_height="90dp"
+                android:text="SOS"
+                android:textSize="18sp"
                 android:textStyle="bold"
-                android:backgroundTint="#D32F2F"
-                android:textColor="#FFFFFF"/>
-
-            <!-- TEMPORARY TEST BUTTONS — remove before release -->
-            <Button
-                android:id="@+id/btnTestShake"
-                android:layout_width="240dp"
-                android:layout_height="60dp"
-                android:layout_marginTop="16dp"
-                android:text="Test Shake (Temp)"
-                android:textSize="16sp"
-                android:backgroundTint="#FF6F00"
-                android:textColor="#FFFFFF"/>
-
-            <Button
-                android:id="@+id/btnTestFall"
-                android:layout_width="240dp"
-                android:layout_height="60dp"
-                android:layout_marginTop="8dp"
-                android:text="Test Fall (Temp)"
-                android:textSize="16sp"
-                android:backgroundTint="#1565C0"
-                android:textColor="#FFFFFF"/>
-
-            <Button
-                android:id="@+id/btnTestRunning"
-                android:layout_width="240dp"
-                android:layout_height="60dp"
-                android:layout_marginTop="8dp"
-                android:text="Test Running (Temp)"
-                android:textSize="16sp"
-                android:backgroundTint="#6A1B9A"
-                android:textColor="#FFFFFF"/>
+                android:textAllCaps="false"
+                app:backgroundTint="?attr/colorError"
+                app:cornerRadius="44dp"
+                android:layout_marginTop="24dp"
+                android:layout_gravity="center_horizontal"
+                android:elevation="8dp"
+                android:stateListAnimator="@null" />
 
         </LinearLayout>
     </ScrollView>

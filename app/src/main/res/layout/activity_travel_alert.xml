@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -56,37 +57,37 @@
             android:layout_marginBottom="24dp" />
 
         <!-- I AM SAFE button -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTravelSafe"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="✅ I AM SAFE"
+            android:text="I AM SAFE"
             android:textSize="16sp"
-            android:textColor="@android:color/white"
-            android:backgroundTint="#388E3C"
+            app:backgroundTint="#388E3C"
+            app:cornerRadius="8dp"
             android:layout_marginBottom="8dp" />
 
         <!-- Extend time button (conditionally visible) -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTravelExtend"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="⏱ Extend +15 min"
+            android:text="Extend +15 min"
             android:textSize="15sp"
-            android:textColor="@android:color/white"
-            android:backgroundTint="#1565C0"
+            app:backgroundTint="#1565C0"
+            app:cornerRadius="8dp"
             android:layout_marginBottom="8dp"
             android:visibility="gone" />
 
         <!-- I NEED HELP button -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTravelHelp"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="🆘 I NEED HELP"
+            android:text="I NEED HELP"
             android:textSize="16sp"
-            android:textColor="@android:color/white"
-            android:backgroundTint="#B71C1C" />
+            app:backgroundTint="?attr/colorError"
+            app:cornerRadius="8dp" />
 
     </LinearLayout>
 

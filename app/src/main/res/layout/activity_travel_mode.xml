@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="?android:attr/colorBackground">
 
     <!-- ── SETUP STATE (shown when travel not yet active) ─────────────────────── -->
     <ScrollView
@@ -16,150 +17,183 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="20dp">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="🗺️ Travel Mode"
-                android:textSize="22sp"
+                android:text="Travel Mode"
+                android:textSize="24sp"
                 android:textStyle="bold"
-                android:textColor="#B71C1C"
-                android:layout_marginBottom="4dp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Search for your destination or tap on the map to drop a pin."
-                android:textSize="13sp"
-                android:textColor="#666666"
-                android:layout_marginBottom="12dp" />
-
-            <EditText
-                android:id="@+id/etDestinationSearch"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="🔍 Search destination..."
-                android:inputType="text"
-                android:imeOptions="actionSearch"
-                android:singleLine="true"
-                android:padding="12dp"
-                android:textSize="15sp"
-                android:background="@drawable/rounded_input_bg"
-                android:layout_marginBottom="8dp" />
-
-            <org.osmdroid.views.MapView
-                android:id="@+id/mapView"
-                android:layout_width="match_parent"
-                android:layout_height="280dp"
+                android:textColor="?attr/colorOnBackground"
                 android:layout_marginBottom="8dp" />
 
             <TextView
-                android:id="@+id/tvSelectedDestination"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text=""
-                android:textSize="13sp"
-                android:textColor="#1565C0"
-                android:visibility="gone"
-                android:layout_marginBottom="16dp" />
+                android:text="Set your destination and expected arrival time. SafeShadow will monitor your journey and alert your contacts if you don't arrive safely."
+                android:textSize="14sp"
+                android:textColor="?attr/colorOnBackground"
+                android:alpha="0.82"
+                android:layout_marginBottom="20dp" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="⏱ Expected travel time"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="#333333"
-                android:layout_marginBottom="8dp" />
-
-            <RadioGroup
-                android:id="@+id/radioGroupEta"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginBottom="4dp">
+                android:padding="20dp"
+                android:background="@drawable/bg_card"
+                android:layout_marginBottom="20dp">
 
-                <RadioButton
-                    android:id="@+id/radio15min"
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="15 minutes"
-                    android:textSize="14sp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp" />
+                    android:text="Destination"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorOnSurface"
+                    android:layout_marginBottom="14dp" />
 
-                <RadioButton
-                    android:id="@+id/radio30min"
+                <EditText
+                    android:id="@+id/etDestinationSearch"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:background="@drawable/bg_input"
+                    android:hint="Search destination..."
+                    android:padding="16dp"
+                    android:textColor="@color/colorOnSurface"
+                    android:textColorHint="@color/colorOnSurface"
+                    android:inputType="text"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="14dp" />
+
+                <org.osmdroid.views.MapView
+                    android:id="@+id/mapView"
+                    android:layout_width="match_parent"
+                    android:layout_height="280dp"
+                    android:layout_marginBottom="14dp" />
+
+                <TextView
+                    android:id="@+id/tvSelectedDestination"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="30 minutes"
+                    android:text=""
                     android:textSize="14sp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp" />
+                    android:textColor="@color/colorPrimary"
+                    android:visibility="gone" />
 
-                <RadioButton
-                    android:id="@+id/radio60min"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="1 hour"
-                    android:textSize="14sp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp" />
+            </LinearLayout>
 
-                <RadioButton
-                    android:id="@+id/radio90min"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="1.5 hours"
-                    android:textSize="14sp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp" />
-
-                <RadioButton
-                    android:id="@+id/radio120min"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="2 hours"
-                    android:textSize="14sp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp" />
-
-                <RadioButton
-                    android:id="@+id/radioCustomEta"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Custom (enter minutes)"
-                    android:textSize="14sp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp" />
-
-            </RadioGroup>
-
-            <EditText
-                android:id="@+id/etCustomEta"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Enter minutes (e.g. 45)"
-                android:inputType="number"
-                android:singleLine="true"
-                android:padding="12dp"
-                android:textSize="15sp"
-                android:background="@drawable/rounded_input_bg"
-                android:visibility="gone"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="16dp" />
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:background="@drawable/bg_card"
+                android:layout_marginBottom="24dp">
 
-            <Button
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Expected Travel Time"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/colorOnSurface"
+                    android:layout_marginBottom="14dp" />
+
+                <RadioGroup
+                    android:id="@+id/radioGroupEta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/radio15min"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="15 minutes"
+                        android:textSize="16sp"
+                        android:textColor="@color/colorOnSurface"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio30min"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="30 minutes"
+                        android:textSize="16sp"
+                        android:textColor="@color/colorOnSurface"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio60min"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="1 hour"
+                        android:textSize="16sp"
+                        android:textColor="@color/colorOnSurface"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio90min"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="1.5 hours"
+                        android:textSize="16sp"
+                        android:textColor="@color/colorOnSurface"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio120min"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="2 hours"
+                        android:textSize="16sp"
+                        android:textColor="@color/colorOnSurface"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radioCustomEta"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Custom time"
+                        android:textSize="16sp"
+                        android:textColor="@color/colorOnSurface"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp" />
+
+                </RadioGroup>
+
+                <EditText
+                    android:id="@+id/etCustomEta"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:background="@drawable/bg_input"
+                    android:hint="Enter minutes (e.g. 45)"
+                    android:padding="16dp"
+                    android:textColor="@color/colorOnSurface"
+                    android:textColorHint="@color/colorOnSurface"
+                    android:inputType="number"
+                    android:textSize="16sp"
+                    android:visibility="gone"
+                    android:layout_marginTop="14dp" />
+
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnStartTravel"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="🚗 Start Travel Mode"
+                android:text="Start Travel Mode"
                 android:textSize="16sp"
-                android:textColor="@android:color/white"
-                android:backgroundTint="#B71C1C"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="32dp" />
+                android:textAllCaps="false"
+                app:backgroundTint="?attr/colorPrimary"
+                app:cornerRadius="12dp" />
 
         </LinearLayout>
     </ScrollView>
@@ -170,61 +204,70 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="24dp"
+        android:padding="20dp"
         android:gravity="center"
         android:visibility="gone">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🚗"
-            android:textSize="56sp"
-            android:layout_marginBottom="16dp" />
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:background="@drawable/bg_card"
+            android:layout_marginBottom="32dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Travel Mode Active"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="#B71C1C"
-            android:layout_marginBottom="24dp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Travel Mode Active"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorOnSurface"
+                android:layout_marginBottom="20dp"
+                android:gravity="center_horizontal" />
 
-        <TextView
-            android:id="@+id/tvActiveDest"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="📍 Destination: —"
-            android:textSize="16sp"
-            android:textColor="#333333"
-            android:layout_marginBottom="8dp" />
+            <TextView
+                android:id="@+id/tvActiveDest"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Destination: —"
+                android:textSize="16sp"
+                android:textColor="@color/colorOnSurface"
+                android:layout_marginBottom="12dp"
+                android:gravity="center_horizontal" />
 
-        <TextView
-            android:id="@+id/tvActiveEta"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⏱ ETA: — minutes"
-            android:textSize="16sp"
-            android:textColor="#555555"
-            android:layout_marginBottom="40dp" />
+            <TextView
+                android:id="@+id/tvActiveEta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ETA: — minutes"
+                android:textSize="16sp"
+                android:textColor="@color/colorOnSurface"
+                android:alpha="0.82"
+                android:layout_marginBottom="20dp"
+                android:gravity="center_horizontal" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="SafeShadow is monitoring your journey.\nYou will receive a safety check if your\nETA passes or phone stays still too long."
-            android:textSize="13sp"
-            android:textColor="#777777"
-            android:gravity="center"
-            android:layout_marginBottom="40dp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SafeShadow is monitoring your journey. You will receive a safety check if your ETA passes or your phone stays still too long."
+                android:textSize="14sp"
+                android:textColor="@color/colorOnSurface"
+                android:alpha="0.75"
+                android:gravity="center_horizontal"
+                android:lineSpacingExtra="4dp" />
 
-        <Button
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnStopTravel"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="⏹ Stop Travel Mode"
+            android:text="Stop Travel Mode"
             android:textSize="16sp"
-            android:textColor="@android:color/white"
-            android:backgroundTint="#B71C1C" />
+            android:textAllCaps="false"
+            app:backgroundTint="?attr/colorError"
+            app:cornerRadius="12dp" />
 
     </LinearLayout>
 

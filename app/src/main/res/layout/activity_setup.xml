@@ -1,107 +1,139 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#1A1A1A"
+    android:background="?android:attr/colorBackground"
     android:padding="20dp">
 
     <TextView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Emergency Contacts"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:textColor="#FFFFFF"
-        android:layout_marginBottom="6dp"/>
+        android:textColor="?attr/colorOnBackground"
+        android:layout_marginBottom="6dp" />
 
     <TextView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="These contacts will receive your SOS alerts"
-        android:textSize="13sp"
-        android:textColor="#AAAAAA"
-        android:layout_marginBottom="24dp"/>
+        android:text="These contacts will receive your SOS alerts when you need help."
+        android:textSize="14sp"
+        android:textColor="?attr/colorOnBackground"
+        android:alpha="0.82"
+        android:layout_marginBottom="20dp" />
 
-    <!-- Add contact input row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:background="@drawable/bg_card"
+        android:layout_marginBottom="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add a contact"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
+            android:layout_marginBottom="14dp" />
 
         <EditText
             android:id="@+id/etContactName"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:layout_weight="1"
+            android:background="@drawable/bg_input"
             android:hint="Name"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#777777"
-            android:backgroundTint="#333333"
-            android:paddingStart="12dp"
+            android:padding="16dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOnSurface"
             android:inputType="textPersonName"
-            android:layout_marginEnd="8dp"/>
+            android:layout_marginBottom="14dp" />
 
-        <Spinner
-            android:id="@+id/spinnerCountry"
-            android:layout_width="100dp"
-            android:layout_height="56dp"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#333333"
-            android:popupBackground="#333333"
-            android:spinnerMode="dropdown"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="3"
+            android:layout_marginBottom="14dp">
 
-        <EditText
-            android:id="@+id/etContactPhone"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_weight="1.5"
-            android:hint="+91XXXXXXXXXX"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#777777"
-            android:backgroundTint="#333333"
-            android:paddingStart="12dp"
-            android:inputType="phone"
-            android:layout_marginEnd="8dp"/>
+            <Spinner
+                android:id="@+id/spinnerCountry"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input"
+                android:spinnerMode="dropdown"
+                android:popupBackground="?attr/colorSurface"
+                android:layout_marginEnd="12dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
 
-        <Button
+            <EditText
+                android:id="@+id/etContactPhone"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="2"
+                android:background="@drawable/bg_input"
+                android:hint="Phone number"
+                android:padding="16dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textColorHint="?attr/colorOnSurface"
+                android:inputType="phone" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAddContact"
-            android:layout_width="56dp"
+            android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="+"
-            android:textSize="24sp"
-            android:backgroundTint="#B71C1C"
-            android:textColor="#FFFFFF"
-            android:padding="0dp"/>
-
+            android:text="+ Add contact"
+            android:textSize="16sp"
+            android:textAllCaps="false"
+            app:backgroundTint="?attr/colorSecondary"
+            app:cornerRadius="12dp" />
     </LinearLayout>
 
-    <!-- Contact list -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Saved contacts"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorOnBackground"
+        android:layout_marginBottom="12dp" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvContacts"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginBottom="16dp"/>
+        android:overScrollMode="ifContentScrolls"
+        android:clipToPadding="false"
+        android:paddingBottom="12dp" />
 
-    <!-- Max contacts note -->
     <TextView
         android:id="@+id/tvContactCount"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="0 / 5 contacts added"
-        android:textSize="12sp"
-        android:textColor="#AAAAAA"
-        android:layout_marginBottom="12dp"/>
+        android:textSize="13sp"
+        android:textColor="?attr/colorOnBackground"
+        android:alpha="0.75"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="10dp" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnDone"
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:text="Done"
         android:textSize="16sp"
-        android:backgroundTint="#B71C1C"
-        android:textColor="#FFFFFF"/>
+        android:textAllCaps="false"
+        app:backgroundTint="?attr/colorPrimary"
+        app:cornerRadius="12dp" />
 
 </LinearLayout>

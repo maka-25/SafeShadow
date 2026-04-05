@@ -80,16 +80,15 @@ class SetupActivity : AppCompatActivity() {
         ) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val textView = super.getView(position, convertView, parent) as TextView
-                textView.text = countries[position].code   // show only +91
-                textView.setTextColor(android.graphics.Color.WHITE)
+                textView.text = countries[position].code
+                textView.setTextColor(getColor(R.color.colorOnSurface))
                 return textView
             }
 
             override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val textView = super.getDropDownView(position, convertView, parent) as TextView
-                textView.text = countries[position].name   // show India (+91)
-                textView.setTextColor(android.graphics.Color.WHITE)
-                textView.setBackgroundColor(android.graphics.Color.parseColor("#333333"))
+                textView.text = countries[position].name
+                textView.setTextColor(getColor(R.color.colorOnSurface))
                 return textView
             }
         }

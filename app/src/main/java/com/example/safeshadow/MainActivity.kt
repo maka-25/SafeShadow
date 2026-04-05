@@ -105,36 +105,6 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
-        // ── TEMPORARY TEST BUTTONS (remove before release) ────────────────────────
-        findViewById<Button>(R.id.btnTestShake).setOnClickListener {
-            if (!isSafetyServiceRunning()) {
-                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            startService(Intent(this, SafetyService::class.java).apply {
-                action = SafetyService.ACTION_TEST_SHAKE
-            })
-        }
-
-        findViewById<Button>(R.id.btnTestFall).setOnClickListener {
-            if (!isSafetyServiceRunning()) {
-                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            startService(Intent(this, SafetyService::class.java).apply {
-                action = SafetyService.ACTION_TEST_FALL
-            })
-        }
-
-        findViewById<Button>(R.id.btnTestRunning).setOnClickListener {
-            if (!isSafetyServiceRunning()) {
-                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            startService(Intent(this, SafetyService::class.java).apply {
-                action = SafetyService.ACTION_TEST_RUNNING
-            })
-        }
     }
 
     // ─── Toolbar menu — gear icon ────────────────────────────────────────────────
@@ -233,29 +203,29 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUI() {
         if (isSafetyServiceRunning()) {
-            tvStatus.text = "🟢 Safety Mode: ON"
+            tvStatus.text = "Safety Mode: Active"
             btnToggleSafety.text = "Turn OFF Safety Mode"
             btnToggleSafety.backgroundTintList =
                 ColorStateList.valueOf(Color.parseColor("#388E3C"))
 
             if (PrefsHelper.isTravelActive(this)) {
                 val dest = PrefsHelper.getTravelDestination(this)
-                btnTravelMode.text = "🚗 Travel Active: $dest"
+                btnTravelMode.text = "Travel Active: $dest"
                 btnTravelMode.backgroundTintList =
                     ColorStateList.valueOf(Color.parseColor("#1565C0"))
             } else {
-                btnTravelMode.text = "🗺️ Start Travel Mode"
+                btnTravelMode.text = "Start Travel Mode"
                 btnTravelMode.backgroundTintList =
                     ColorStateList.valueOf(Color.parseColor("#0288D1"))
             }
             btnTravelMode.isEnabled = true
 
         } else {
-            tvStatus.text = "🔴 Safety Mode: OFF"
+            tvStatus.text = "Safety Mode: Inactive"
             btnToggleSafety.text = "Turn ON Safety Mode"
             btnToggleSafety.backgroundTintList =
                 ColorStateList.valueOf(Color.parseColor("#B71C1C"))
-            btnTravelMode.text = "🗺️ Start Travel Mode"
+            btnTravelMode.text = "Start Travel Mode"
             btnTravelMode.isEnabled = false
             btnTravelMode.backgroundTintList =
                 ColorStateList.valueOf(Color.parseColor("#9E9E9E"))

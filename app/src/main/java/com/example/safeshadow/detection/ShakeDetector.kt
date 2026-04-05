@@ -4,43 +4,42 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
  * ShakeDetector
  *
- * Detects 3 deliberate shakes within 3 seconds.
+ * Detects 3 deliberate shakes within a specified window of time.
  *
- * Key improvements over naive threshold detection:
- * - Threshold raised to 3.0G (was 2.2G) — eliminates most accidental triggers
- * - Direction-change requirement: each shake must reverse axis direction
- *   (real shakes go back and forth; dropping/throwing goes one direction)
- * - Dominant axis tracking: all shakes must be on the same axis (X, Y or Z)
- *   which is how a real shake works — not random multi-axis noise
- * - 10 second cooldown after trigger
+ * Improvements over naive threshold detection:
+ * - Threshold raised to 3.0G to reduce accidental triggers from minor bumps or drops.
+ * - Direction-change requirement: each shake must reverse along the dominant axis.
+ * - Dominant axis tracking: all shakes must occur on the same axis (X, Y, or Z).
+ * - Minimum and maximum time constraints between shakes to ensure intentional motion.
+ * - Cooldown period after a trigger to prevent repeated activation.
  */
 class ShakeDetector(
     private val onShakeDetected: () -> Unit
 ) : SensorEventListener {
 
     companion object {
-        // How hard the shake must be — 3.0G filters out bumps, drops, running
+        /** Minimum g-force required to count as a shake. */
         private const val SHAKE_THRESHOLD_GRAVITY = 3.0f
 
-        // All 3 shakes must happen within this window
+        /** Maximum time window (ms) within which all required shakes must occur. */
         private const val SHAKE_COUNT_RESET_TIME = 3000L
 
-        // Minimum required shakes
+        /** Number of consecutive shakes required to trigger the event. */
         private const val REQUIRED_SHAKES = 3
 
-        // Minimum time between two shake peaks (prevents noise bursts counting as multiple)
+        /** Minimum time (ms) between two shake peaks to prevent noise from being counted multiple times. */
         private const val MIN_TIME_BETWEEN_SHAKES = 250L
 
-        // Cooldown after a shake SOS is triggered — prevents immediate re-trigger
+        /** Cooldown period (ms) after a shake trigger to prevent immediate retriggering. */
         private const val COOLDOWN_AFTER_TRIGGER = 10000L
 
-        // After a shake peak, wait this long before accepting next peak
-        // This ensures the phone has time to reverse direction
+        /** Maximum allowed time (ms) between direction reversals on the dominant axis. */
         private const val DIRECTION_REVERSE_WINDOW = 400L
     }
 
@@ -49,8 +48,8 @@ class ShakeDetector(
     private var firstShakeTime = 0L
     private var lastTriggerTime = 0L
 
-    // Direction tracking — real shakes alternate direction on dominant axis
-    private var lastDominantAxis = -1   // 0=X, 1=Y, 2=Z
+    /** Track the dominant axis and its last sign to ensure proper back-and-forth shakes. */
+    private var lastDominantAxis = -1   // 0 = X, 1 = Y, 2 = Z
     private var lastAxisSign = 0        // +1 or -1
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -62,7 +61,7 @@ class ShakeDetector(
 
         val gForce = sqrt(x * x + y * y + z * z) / SensorManager.GRAVITY_EARTH
 
-        // Must exceed threshold
+        // Ignore movements below the shake threshold
         if (gForce <= SHAKE_THRESHOLD_GRAVITY) return
 
         val now = System.currentTimeMillis()
@@ -73,23 +72,22 @@ class ShakeDetector(
         // Respect minimum time between shake peaks
         if (now - lastShakeTime < MIN_TIME_BETWEEN_SHAKES) return
 
-        // Find the dominant axis (the axis with the highest absolute value)
-        val absX = kotlin.math.abs(x)
-        val absY = kotlin.math.abs(y)
-        val absZ = kotlin.math.abs(z)
+        // Determine the dominant axis (highest absolute value)
+        val absX = abs(x)
+        val absY = abs(y)
+        val absZ = abs(z)
 
         val dominantAxis: Int
         val axisValue: Float
-
         when {
             absX >= absY && absX >= absZ -> { dominantAxis = 0; axisValue = x }
             absY >= absX && absY >= absZ -> { dominantAxis = 1; axisValue = y }
-            else                         -> { dominantAxis = 2; axisValue = z }
+            else -> { dominantAxis = 2; axisValue = z }
         }
 
         val currentSign = if (axisValue > 0) 1 else -1
 
-        // Reset shake count if window expired
+        // Reset shake count if the window for counting shakes has expired
         if (now - firstShakeTime > SHAKE_COUNT_RESET_TIME) {
             shakeCount = 0
             firstShakeTime = now
@@ -97,19 +95,19 @@ class ShakeDetector(
             lastAxisSign = currentSign
         }
 
-        // Direction-change check:
-        // Real shake = same axis, opposite sign each time
-        // Random bump = different axes or same sign (one-way force)
+        // Validate shake: must be on the same axis, reverse direction, and within the direction reversal window
         val isValidShake = if (shakeCount == 0) {
-            // First shake — always accept, just record direction
+            // First shake is always valid
             true
         } else {
-            // Subsequent shakes must be on same axis AND reversed direction
-            dominantAxis == lastDominantAxis && currentSign != lastAxisSign
+            val isSameAxis = dominantAxis == lastDominantAxis
+            val isDirectionChanged = currentSign != lastAxisSign
+            val isWithinTime = (now - lastShakeTime) <= DIRECTION_REVERSE_WINDOW
+            isSameAxis && isDirectionChanged && isWithinTime
         }
 
         if (!isValidShake) {
-            // Wrong axis or same direction — reset and start fresh from this shake
+            // Reset count and start fresh if the shake is invalid
             shakeCount = 1
             firstShakeTime = now
             lastDominantAxis = dominantAxis
@@ -118,7 +116,7 @@ class ShakeDetector(
             return
         }
 
-        // Valid shake — record it
+        // Record the valid shake
         lastShakeTime = now
         lastDominantAxis = dominantAxis
         lastAxisSign = currentSign
@@ -128,8 +126,8 @@ class ShakeDetector(
             firstShakeTime = now
         }
 
+        // Trigger event if the required number of shakes is reached
         if (shakeCount >= REQUIRED_SHAKES) {
-            // Confirmed — 3 real back-and-forth shakes on same axis
             shakeCount = 0
             firstShakeTime = 0
             lastShakeTime = 0
