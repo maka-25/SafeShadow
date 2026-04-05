@@ -1,5 +1,6 @@
 package com.example.safeshadow.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputFilter
 import android.view.LayoutInflater
@@ -13,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.safeshadow.Contact
 import com.example.safeshadow.PrefsHelper
 import com.example.safeshadow.R
+import com.example.safeshadow.service.SafetyService
 
 class SetupActivity : AppCompatActivity() {
 
@@ -168,6 +170,7 @@ class SetupActivity : AppCompatActivity() {
         etPhone.text.clear()
 
         updateCount()
+        PrefsHelper.saveContacts(this, contacts)
         Toast.makeText(this, "$name added", Toast.LENGTH_SHORT).show()
     }
 
@@ -183,6 +186,19 @@ class SetupActivity : AppCompatActivity() {
                 contacts.removeAt(position)
                 adapter.notifyItemRemoved(position)
                 updateCount()
+                PrefsHelper.saveContacts(this, contacts)
+
+                if (contacts.isEmpty() && PrefsHelper.isSafetyModeOn(this)) {
+                    PrefsHelper.setSafetyModeOn(this, false)
+                    startService(Intent(this, SafetyService::class.java).apply {
+                        action = SafetyService.ACTION_STOP_SERVICE
+                    })
+                    Toast.makeText(
+                        this,
+                        "Safety Mode turned off — no emergency contacts",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()

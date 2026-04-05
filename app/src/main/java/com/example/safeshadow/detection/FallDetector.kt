@@ -11,8 +11,8 @@ class FallDetector(
 ) : SensorEventListener {
 
     companion object {
-        private const val FREE_FALL_THRESHOLD = 0.4f    // Near zero G = falling
-        private const val IMPACT_THRESHOLD = 3.5f       // High G = impact after fall
+        private const val FREE_FALL_THRESHOLD = 0.6f    // Near zero G = falling
+        private const val IMPACT_THRESHOLD = 2.8f       // High G = impact after fall
         private const val STILLNESS_THRESHOLD = 1.2f    // Low G = phone is still
         private const val STILLNESS_DURATION = 2000L    // Still for 2 seconds
         private const val FALL_DETECTION_WINDOW = 3000L // Fall + impact within 3 seconds

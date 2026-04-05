@@ -4,6 +4,9 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -14,32 +17,73 @@ import kotlin.coroutines.suspendCoroutine
 
 object LocationHelper {
 
+    private const val TAG = "SafeShadow"
+    private const val LOCATION_TIMEOUT_MS = 8000L
+
     fun getLastLocation(
         context: Context,
         onSuccess: (lat: Double, lng: Double) -> Unit,
         onFailure: () -> Unit
     ) {
+        Log.d(TAG, "getLastLocation called")
+
         if (ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
+            Log.w(TAG, "Location permission not granted")
             onFailure()
             return
         }
 
         val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+        val handler = Handler(Looper.getMainLooper())
+        var callbackInvoked = false
+
+        val timeoutRunnable = Runnable {
+            if (!callbackInvoked) {
+                callbackInvoked = true
+                Log.w(TAG, "Location request timed out after $LOCATION_TIMEOUT_MS ms")
+                onFailure()
+            }
+        }
+
+        handler.postDelayed(timeoutRunnable, LOCATION_TIMEOUT_MS)
+
+        fun completeSuccess(lat: Double, lng: Double) {
+            if (callbackInvoked) return
+            callbackInvoked = true
+            handler.removeCallbacks(timeoutRunnable)
+            Log.d(TAG, "getLastLocation successful: $lat,$lng")
+            onSuccess(lat, lng)
+        }
+
+        fun completeFailure(message: String) {
+            if (callbackInvoked) return
+            callbackInvoked = true
+            handler.removeCallbacks(timeoutRunnable)
+            Log.w(TAG, "getLastLocation failed: $message")
+            onFailure()
+        }
 
         fusedClient.lastLocation
             .addOnSuccessListener { location ->
+                Log.d(TAG, "lastLocation returned: $location")
                 if (location != null) {
-                    onSuccess(location.latitude, location.longitude)
+                    completeSuccess(location.latitude, location.longitude)
                 } else {
-                    requestFreshLocation(context, fusedClient, onSuccess, onFailure)
+                    Log.d(TAG, "lastLocation was null — requesting fresh location")
+                    requestFreshLocation(context, fusedClient, ::completeSuccess) {
+                        completeFailure("fresh location unavailable")
+                    }
                 }
             }
-            .addOnFailureListener {
-                requestFreshLocation(context, fusedClient, onSuccess, onFailure)
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "lastLocation failed: ${exception.message}")
+                requestFreshLocation(context, fusedClient, ::completeSuccess) {
+                    completeFailure("fresh location failed")
+                }
             }
     }
 
@@ -49,11 +93,14 @@ object LocationHelper {
         onSuccess: (lat: Double, lng: Double) -> Unit,
         onFailure: () -> Unit
     ) {
+        Log.d(TAG, "requestFreshLocation called")
+
         if (ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
+            Log.w(TAG, "Location permission not granted for fresh location")
             onFailure()
             return
         }
@@ -65,13 +112,16 @@ object LocationHelper {
 
         fusedClient.getCurrentLocation(request, null)
             .addOnSuccessListener { location ->
+                Log.d(TAG, "getCurrentLocation returned: $location")
                 if (location != null) {
                     onSuccess(location.latitude, location.longitude)
                 } else {
+                    Log.w(TAG, "getCurrentLocation returned null")
                     onFailure()
                 }
             }
-            .addOnFailureListener {
+            .addOnFailureListener { exception ->
+                Log.w(TAG, "getCurrentLocation failed: ${exception.message}")
                 onFailure()
             }
     }

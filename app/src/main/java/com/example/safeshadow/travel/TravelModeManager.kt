@@ -1,60 +1,48 @@
 package com.example.safeshadow.travel
 
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.location.Location
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.example.safeshadow.MainActivity
 import com.example.safeshadow.PrefsHelper
+import com.example.safeshadow.R
+import com.example.safeshadow.alert.AlertManager
 import com.example.safeshadow.alert.LocationHelper
 import com.example.safeshadow.ui.TravelAlertActivity
+import com.example.safeshadow.service.SafetyService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
-/**
- * TravelModeManager
- *
- * Runs inside SafetyService. Manages two parallel checks:
- *
- * 1. ETA check — polls every 2 minutes. When ETA expires, launches TravelAlertActivity.
- * 2. Stillness check — if phone hasn't moved > 50m for 10 continuous minutes mid-journey,
- *    launches TravelAlertActivity.
- *
- * Design rules:
- * - Never shows dialogs directly (always via TravelAlertActivity)
- * - Never sends alerts directly (always through TravelAlertActivity, which calls AlertManager)
- * - Cleans up completely on stop()
- */
 class TravelModeManager(private val context: Context) {
 
     companion object {
         private const val TAG = "TravelModeManager"
-
-        // How often we poll location during travel (2 minutes — battery friendly)
         private const val LOCATION_POLL_INTERVAL_MS = 2 * 60 * 1000L
-
-        // How long phone must be still before triggering a stillness check (10 minutes)
-        private const val STILLNESS_THRESHOLD_MS = 10 * 60 * 1000L
-
-        // Radius within which movement is considered "still" (50 metres — city travel)
-        private const val STILLNESS_RADIUS_M = 50f
-
-        // Grace period at start — don't check stillness for first 5 minutes
-        // (user may still be at home, gathering things, saying goodbye, etc.)
+        private const val STILLNESS_THRESHOLD_MS    = 10 * 60 * 1000L
+        private const val STILLNESS_RADIUS_M        = 50f
         private const val STILLNESS_GRACE_PERIOD_MS = 5 * 60 * 1000L
+
+        // Use high request codes to avoid collision with SafetyService PendingIntents
+        private const val TRAVEL_SAFE_REQUEST_CODE   = 3001
+        private const val TRAVEL_HELP_REQUEST_CODE   = 3002
+        private const val TRAVEL_SCREEN_REQUEST_CODE = 3003
     }
 
     private val handler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // Track whether a TravelAlert is currently shown — prevent stacking dialogs
     private var alertShowing = false
+    private var travelAlertTimeoutRunnable: Runnable? = null
 
-    // Runnable that fires every LOCATION_POLL_INTERVAL_MS
     private val pollRunnable = object : Runnable {
         override fun run() {
             if (!PrefsHelper.isTravelActive(context)) {
@@ -62,33 +50,29 @@ class TravelModeManager(private val context: Context) {
                 return
             }
             checkTravelStatus()
-            // Schedule next poll
             handler.postDelayed(this, LOCATION_POLL_INTERVAL_MS)
         }
     }
 
-    /** Call this when user starts travel mode */
     fun start() {
         Log.d(TAG, "TravelModeManager started")
         alertShowing = false
-        // First poll after 1 minute (give user time to start moving)
         handler.postDelayed(pollRunnable, 60 * 1000L)
     }
 
-    /** Call this when travel mode is stopped (arrival confirmed or manual stop) */
     fun stop() {
         Log.d(TAG, "TravelModeManager stopped")
         handler.removeCallbacks(pollRunnable)
+        cancelTravelAlert()
         scope.cancel()
         alertShowing = false
     }
 
-    /** Call from TravelAlertActivity when an alert is dismissed (safe confirmed or extended) */
     fun onAlertDismissed() {
         alertShowing = false
     }
 
-    // ─── Core check ─────────────────────────────────────────────────────────────
+    // ─── Core check ───────────────────────────────────────────────────────────
 
     private fun checkTravelStatus() {
         if (alertShowing) {
@@ -99,14 +83,12 @@ class TravelModeManager(private val context: Context) {
         val etaEndTime = PrefsHelper.getTravelEtaEndTime(context)
         val now = System.currentTimeMillis()
 
-        // ETA expired?
         if (now >= etaEndTime) {
-            Log.d(TAG, "ETA expired — launching TravelAlertActivity (ETA reason)")
-            launchTravelAlert(TravelAlertActivity.REASON_ETA_EXPIRED)
+            Log.d(TAG, "ETA expired — showing travel alert notification")
+            showTravelAlertNotification(TravelAlertActivity.REASON_ETA_EXPIRED)
             return
         }
 
-        // Not yet in stillness grace period?
         val startTime = PrefsHelper.getTravelStartTime(context)
         val timeSinceStart = now - startTime
         if (timeSinceStart < STILLNESS_GRACE_PERIOD_MS) {
@@ -114,13 +96,12 @@ class TravelModeManager(private val context: Context) {
             return
         }
 
-        // Check current location for stillness
         scope.launch {
             checkStillness()
         }
     }
 
-    // ─── Stillness detection ─────────────────────────────────────────────────────
+    // ─── Stillness detection ──────────────────────────────────────────────────
 
     private suspend fun checkStillness() {
         try {
@@ -129,51 +110,44 @@ class TravelModeManager(private val context: Context) {
                 return
             }
 
-            // If speed is greater than 0.5 m/s, suppress stillness alert (user is moving)
             if (location.speed > 0.5f) {
-                Log.d(TAG, "Stillness suppressed — current speed: ${location.speed} m/s")
+                Log.d(TAG, "Stillness suppressed — speed: ${location.speed} m/s")
                 return
             }
 
             val now = System.currentTimeMillis()
-            val lastLat = PrefsHelper.getLastKnownLat(context)
-            val lastLng = PrefsHelper.getLastKnownLng(context)
+            val lastLat  = PrefsHelper.getLastKnownLat(context)
+            val lastLng  = PrefsHelper.getLastKnownLng(context)
             val lastTime = PrefsHelper.getLastKnownLocTime(context)
 
-            // First location reading — just save it, nothing to compare against yet
             if (lastTime == 0L) {
                 PrefsHelper.saveLastKnownLocation(context, location.latitude, location.longitude, now)
-                Log.d(TAG, "First location saved: ${location.latitude}, ${location.longitude}")
+                Log.d(TAG, "First location saved")
                 return
             }
 
-            // Calculate distance from last known position
             val lastLocation = Location("last").apply {
-                latitude = lastLat
+                latitude  = lastLat
                 longitude = lastLng
             }
             val distanceMoved = location.distanceTo(lastLocation)
 
-            Log.d(TAG, "Distance moved since last check: ${distanceMoved}m")
+            Log.d(TAG, "Distance moved: ${distanceMoved}m")
 
             if (distanceMoved > STILLNESS_RADIUS_M) {
-                // Phone has moved — reset stillness clock
-                Log.d(TAG, "Phone moved ${distanceMoved}m — updating position, resetting stillness clock")
                 PrefsHelper.saveLastKnownLocation(context, location.latitude, location.longitude, now)
+                Log.d(TAG, "Phone moved — stillness clock reset")
             } else {
-                // Phone hasn't moved much — how long has it been still?
                 val stillForMs = now - lastTime
-                Log.d(TAG, "Phone still for ${stillForMs / 1000}s (threshold: ${STILLNESS_THRESHOLD_MS / 1000}s)")
+                Log.d(TAG, "Still for ${stillForMs / 1000}s")
 
                 if (stillForMs >= STILLNESS_THRESHOLD_MS) {
-                    Log.d(TAG, "Stillness threshold exceeded — launching TravelAlertActivity")
-                    // Reset the stillness clock so we don't fire again immediately
+                    Log.d(TAG, "Stillness threshold exceeded — showing alert")
                     PrefsHelper.saveLastKnownLocation(context, location.latitude, location.longitude, now)
                     handler.post {
-                        launchTravelAlert(TravelAlertActivity.REASON_STILLNESS)
+                        showTravelAlertNotification(TravelAlertActivity.REASON_STILLNESS)
                     }
                 }
-                // If still but not long enough — do nothing, keep monitoring
             }
 
         } catch (e: Exception) {
@@ -181,11 +155,89 @@ class TravelModeManager(private val context: Context) {
         }
     }
 
-    // ─── Launch safety check dialog ─────────────────────────────────────────────
+    // ─── Travel alert notification ────────────────────────────────────────────
 
-    private fun launchTravelAlert(reason: String) {
+    private fun showTravelAlertNotification(reason: String) {
         if (alertShowing) return
         alertShowing = true
-        TravelAlertActivity.launch(context, reason)
+        cancelTravelAlert()
+
+        val title = if (reason == TravelAlertActivity.REASON_ETA_EXPIRED) {
+            "🗺️ Travel ETA Reached"
+        } else {
+            "⚠️ Are you okay?"
+        }
+
+        val body = if (reason == TravelAlertActivity.REASON_ETA_EXPIRED) {
+            "Have you arrived safely at your destination?"
+        } else {
+            "You have been still for a while. Are you safe?"
+        }
+
+        Log.d(TAG, "Showing travel alert notification — reason: $reason")
+
+        val safePending = PendingIntent.getBroadcast(
+            context,
+            TRAVEL_SAFE_REQUEST_CODE,
+            Intent("com.example.safeshadow.ACTION_TRAVEL_SAFE").apply {
+                setPackage(context.packageName)
+                putExtra("travel_reason", reason)
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val helpPending = PendingIntent.getBroadcast(
+            context,
+            TRAVEL_HELP_REQUEST_CODE,
+            Intent("com.example.safeshadow.ACTION_TRAVEL_HELP").apply {
+                setPackage(context.packageName)
+                putExtra("travel_reason", reason)
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val fullScreenIntent = PendingIntent.getActivity(
+            context,
+            TRAVEL_SCREEN_REQUEST_CODE,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, "safety_alert_channel_v2")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setFullScreenIntent(fullScreenIntent, true)
+            .addAction(0, "✅ I'm Safe", safePending)
+            .addAction(0, "🆘 I Need Help", helpPending)
+            .build()
+
+        context.getSystemService(NotificationManager::class.java)?.notify(2004, notification)
+
+        // Auto-send SOS after 30 seconds if no response
+        travelAlertTimeoutRunnable = Runnable {
+            Log.w(TAG, "No response to travel alert — auto-sending SOS")
+            AlertManager.sendSosAlert(context, "No response to travel safety check")
+            cancelTravelAlert()
+            PrefsHelper.stopTravel(context)
+            context.startService(Intent(context, SafetyService::class.java).apply {
+                action = SafetyService.ACTION_STOP_TRAVEL
+            })
+            alertShowing = false
+        }
+        handler.postDelayed(travelAlertTimeoutRunnable!!, 30 * 1000L)
+    }
+
+    fun cancelTravelAlert() {
+        travelAlertTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        travelAlertTimeoutRunnable = null
+        context.getSystemService(NotificationManager::class.java)?.cancel(2004)
     }
 }

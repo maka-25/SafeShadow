@@ -1,6 +1,11 @@
 package com.example.safeshadow
 
 import android.Manifest
+import android.app.Notification
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -9,29 +14,21 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
-import android.os.Handler
-import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
-import android.view.Menu
-import android.view.MenuItem
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.safeshadow.service.SafetyService
 import com.example.safeshadow.ui.SetupActivity
 import com.example.safeshadow.ui.SettingsActivity
 import com.example.safeshadow.ui.TravelModeActivity
-import android.app.Notification
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
-import android.content.Context
 
 class MainActivity : AppCompatActivity() {
 
@@ -40,10 +37,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnTravelMode: Button
     private lateinit var btnSOS: Button
 
-    // SOS countdown state
     private var sosCountdownTimer: CountDownTimer? = null
-    private var sosHandler: Handler? = null
     private var localBroadcastReceiver: BroadcastReceiver? = null
+
+    // Track whether countdown is running so onResume doesn't reset button mid-count
+    private var sosCountdownActive = false
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -62,7 +60,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Use the app toolbar so gear icon appears in the top-right corner
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
@@ -74,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         requestAllPermissions()
         requestBatteryOptimizationExemption()
 
-        // Register LocalBroadcastManager receiver for SOS cancellation
+        // Listen for cancel from notification action button
         localBroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == "com.example.safeshadow.LOCAL_CANCEL_SOS") {
@@ -82,8 +79,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        val filter = android.content.IntentFilter("com.example.safeshadow.LOCAL_CANCEL_SOS")
-        LocalBroadcastManager.getInstance(this).registerReceiver(localBroadcastReceiver!!, filter)
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            localBroadcastReceiver!!,
+            android.content.IntentFilter("com.example.safeshadow.LOCAL_CANCEL_SOS")
+        )
 
         btnToggleSafety.setOnClickListener {
             if (isSafetyServiceRunning()) stopSafetyService() else startSafetyService()
@@ -105,8 +104,18 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, SetupActivity::class.java))
         }
 
-        // ── Manual SOS ────────────────────────────────────────────────────────────
+        setupSosButton()
+    }
+
+    // ─── SOS button setup — always call this to set the correct listener ──────
+
+    private fun setupSosButton() {
         btnSOS.setOnClickListener {
+            if (sosCountdownActive) {
+                // Button is in cancel mode during countdown
+                cancelSosCountdown()
+                return@setOnClickListener
+            }
             if (!isSafetyServiceRunning()) {
                 Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -119,17 +128,16 @@ class MainActivity : AppCompatActivity() {
             }
             startSosCountdown()
         }
-
     }
 
-    // ─── Toolbar menu — gear icon ────────────────────────────────────────────────
+    // ─── Toolbar menu ─────────────────────────────────────────────────────────
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
@@ -139,22 +147,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Lifecycle ───────────────────────────────────────────────────────────────
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
 
     override fun onResume() {
         super.onResume()
-        updateUI()
+        // Only update UI if countdown is not active — don't reset button mid-count
+        if (!sosCountdownActive) {
+            updateUI()
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         sosCountdownTimer?.cancel()
-        if (localBroadcastReceiver != null) {
-            LocalBroadcastManager.getInstance(this).unregisterReceiver(localBroadcastReceiver!!)
+        localBroadcastReceiver?.let {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(it)
         }
     }
 
-    // ─── Safety service helpers ──────────────────────────────────────────────────
+    // ─── Safety service helpers ───────────────────────────────────────────────
 
     private fun isSafetyServiceRunning(): Boolean = PrefsHelper.isSafetyModeOn(this)
 
@@ -222,109 +233,93 @@ class MainActivity : AppCompatActivity() {
         updateUI()
     }
 
-    // ─── SOS Countdown ───────────────────────────────────────────────────────────
+    // ─── SOS Countdown ────────────────────────────────────────────────────────
 
     private fun startSosCountdown() {
-        // Disable buttons
+        sosCountdownActive = true
         btnToggleSafety.isEnabled = false
         btnTravelMode.isEnabled = false
+        btnSOS.text = "Cancel (5)"
 
-        // Show countdown notification
         showSosNotification()
 
-        var secondsLeft = 5
-
-        sosCountdownTimer = object : CountDownTimer(5000, 1000) {
+        sosCountdownTimer = object : CountDownTimer(5500, 1000) {
             override fun onTick(millisUntilFinished: Long) {
-                secondsLeft = (millisUntilFinished / 1000).toInt()
+                val secondsLeft = (millisUntilFinished / 1000).toInt().coerceAtLeast(1)
                 btnSOS.text = "Cancel ($secondsLeft)"
             }
 
             override fun onFinish() {
-                // Cancel notification
+                sosCountdownActive = false
+
+                // Cancel the notification
                 getSystemService(NotificationManager::class.java).cancel(2002)
-                
-                // Set cooldown and send SOS
-                PrefsHelper.setLastAlertTime(this@MainActivity)
-                startService(Intent(this@MainActivity, SafetyService::class.java).apply {
-                    action = SafetyService.ACTION_SOS_TRIGGERED
-                })
-                
-                // Reset button
+
+                // Reset button immediately
                 btnSOS.text = "SOS"
                 btnToggleSafety.isEnabled = true
                 btnTravelMode.isEnabled = true
+
+                // FIX: Do NOT set cooldown here — AlertManager.sendSosAlert()
+                // sets it inside the location callback just before SMS sends.
+                // Setting it here caused SafetyService to see cooldown active
+                // and block the ACTION_SOS_TRIGGERED intent silently.
+                startService(Intent(this@MainActivity, SafetyService::class.java).apply {
+                    action = SafetyService.ACTION_SOS_TRIGGERED
+                })
             }
         }.start()
-
-        // Allow user to cancel by tapping button
-        btnSOS.setOnClickListener {
-            cancelSosCountdown()
-        }
     }
 
     private fun cancelSosCountdown() {
         sosCountdownTimer?.cancel()
         sosCountdownTimer = null
-        
-        // Cancel notification
+        sosCountdownActive = false
+
         getSystemService(NotificationManager::class.java).cancel(2002)
-        
-        // Reset button
+
         btnSOS.text = "SOS"
         btnToggleSafety.isEnabled = true
         btnTravelMode.isEnabled = true
-
-        // Re-attach the original click listener
-        btnSOS.setOnClickListener {
-            if (!isSafetyServiceRunning()) {
-                Toast.makeText(this, "Turn ON Safety Mode first", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (PrefsHelper.isAlertOnCooldown(this)) {
-                Toast.makeText(
-                    this, "Alert already sent recently. Please wait.", Toast.LENGTH_SHORT
-                ).show()
-                return@setOnClickListener
-            }
-            startSosCountdown()
-        }
+        // No cooldown set on cancel
     }
 
     private fun showSosNotification() {
-        // Create safety alert notification channel if not exists
         val channel = android.app.NotificationChannel(
-            "safety_alert_channel", "Safety Alerts", NotificationManager.IMPORTANCE_HIGH
+            "safety_alert_channel_v2",
+            "Safety Alerts",
+            NotificationManager.IMPORTANCE_HIGH
         ).apply {
             enableVibration(true)
+            setSound(null, null)
             setShowBadge(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
 
-        // Intent for "Cancel SOS" action
         val cancelPendingIntent = PendingIntent.getBroadcast(
-            this, 0,
+            this, 2002,
             Intent("com.example.safeshadow.ACTION_CANCEL_SOS").apply {
                 setPackage(packageName)
             },
-            PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = androidx.core.app.NotificationCompat.Builder(this, "safety_alert_channel")
-            .setContentTitle("SOS sending in 5 seconds")
-            .setContentText("Tap Cancel to stop")
+        val notification = NotificationCompat.Builder(this, "safety_alert_channel_v2")
+            .setContentTitle("🚨 SOS sending in 5 seconds")
+            .setContentText("Tap Cancel to stop.")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(Notification.CATEGORY_ALARM)
             .setOngoing(true)
+            .setAutoCancel(false)
             .addAction(0, "Cancel SOS", cancelPendingIntent)
             .build()
 
         getSystemService(NotificationManager::class.java).notify(2002, notification)
     }
 
-    // ─── UI update ───────────────────────────────────────────────────────────────
+    // ─── UI update ────────────────────────────────────────────────────────────
 
     private fun updateUI() {
         if (isSafetyServiceRunning()) {
@@ -357,7 +352,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Permissions ─────────────────────────────────────────────────────────────
+    // ─── Permissions ──────────────────────────────────────────────────────────
 
     private fun requestAllPermissions() {
         val permissions = mutableListOf(

@@ -87,6 +87,15 @@
         </receiver>
 
         <receiver
+            android:name="com.example.safeshadow.travel.TravelAlertReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.safeshadow.ACTION_TRAVEL_SAFE" />
+                <action android:name="com.example.safeshadow.ACTION_TRAVEL_HELP" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name="com.example.safeshadow.alert.SmsSentReceiver"
             android:exported="false">
             <intent-filter>

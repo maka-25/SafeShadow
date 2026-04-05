@@ -9,7 +9,8 @@ import android.app.Service
 import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorManager
-import android.os.CountDownTimer
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -24,7 +25,6 @@ import com.example.safeshadow.detection.FallDetector
 import com.example.safeshadow.detection.RunningDetector
 import com.example.safeshadow.detection.ShakeDetector
 import com.example.safeshadow.travel.TravelModeManager
-import com.example.safeshadow.ui.SafetyAlertActivity
 
 class SafetyService : Service() {
 
@@ -43,11 +43,10 @@ class SafetyService : Service() {
         const val ACTION_RELOAD_SETTINGS        = "ACTION_RELOAD_SETTINGS"
         const val ACTION_CANCEL_ALERT           = "com.example.safeshadow.ACTION_CANCEL_ALERT"
 
-        private const val CHANNEL_ID   = "SAFE_CHANNEL"
-        private const val CHANNEL_NAME = "Safety Service"
-
-        // How long the shake confirmation countdown lasts (5 seconds)
-        private const val SHAKE_CONFIRM_DURATION_MS = 5000L
+        private const val CHANNEL_ID            = "SAFE_CHANNEL"
+        private const val CHANNEL_NAME          = "Safety Service"
+        private const val ALERT_CHANNEL_ID      = "safety_alert_channel"
+        private const val ALERT_CHANNEL_NAME    = "Safety Alerts"
     }
 
     private var intentionallyStopped = false
@@ -69,9 +68,12 @@ class SafetyService : Service() {
     private var runningSessionHandler: Handler? = null
     private var runningSessionRunnable: Runnable? = null
 
+    // Track last shown reason to update PendingIntent extras correctly
+    private var lastAlertReason: String = ""
+
     override fun onCreate() {
         super.onCreate()
-        createChannel()
+        createChannels()
         startForeground(NOTIFICATION_ID, buildNotification(currentNotificationText))
         setupDetectors()
     }
@@ -125,23 +127,21 @@ class SafetyService : Service() {
             }
 
             ACTION_RELOAD_SETTINGS -> {
-                // Re-register detectors to pick up new toggle states from settings
                 stopDetectors()
                 setupDetectors()
                 Log.d("SafeShadow", "Settings reloaded — detectors re-registered")
             }
 
-            ACTION_TEST_SHAKE -> onShakeTriggered()
-
-            ACTION_TEST_FALL -> onSuspiciousEventDetected("Possible fall detected")
-
+            ACTION_TEST_SHAKE  -> onShakeTriggered()
+            ACTION_TEST_FALL   -> onSuspiciousEventDetected("Possible fall detected")
             ACTION_TEST_RUNNING -> onSuspiciousEventDetected("You appear to be running")
 
             ACTION_SOS_TRIGGERED -> {
-                if (PrefsHelper.isAlertOnCooldown(this)) {
-                    Log.d("SafeShadow", "Manual SOS ignored — on cooldown")
-                    return START_STICKY
-                }
+                // Note: cooldown check is intentionally NOT done here.
+                // MainActivity already checked cooldown before starting the countdown.
+                // AlertManager.sendSosAlert() sets cooldown inside the location callback
+                // just before SMS sends. Checking here would block the intent because
+                // cooldown might already be set by a previous detection event.
                 updateNotification("🚨 SOS Triggered! Sending alert...")
                 AlertManager.sendSosAlert(this, reason = "Manual SOS")
                 resetNotificationAfterDelay()
@@ -174,10 +174,13 @@ class SafetyService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ─── Notification Channel ────────────────────────────────────────────────────
+    // ─── Notification Channels ────────────────────────────────────────────────
 
-    private fun createChannel() {
-        val channel = NotificationChannel(
+    private fun createChannels() {
+        val nm = getSystemService(NotificationManager::class.java)
+
+        // Foreground service channel — silent, low importance
+        val serviceChannel = NotificationChannel(
             CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW
         ).apply {
             setSound(null, null)
@@ -185,10 +188,28 @@ class SafetyService : Service() {
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        nm.createNotificationChannel(serviceChannel)
+
+        // Safety alert channel — high importance WITH sound so heads-up appears
+        val alertSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
+        val alertChannel = NotificationChannel(
+            ALERT_CHANNEL_ID, ALERT_CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            setSound(alertSound, audioAttributes)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 400, 200, 400, 200, 400)
+            setShowBadge(true)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        nm.createNotificationChannel(alertChannel)
     }
 
-    // ─── Notification Builder ────────────────────────────────────────────────────
+    // ─── Notification Builder ─────────────────────────────────────────────────
 
     private fun buildNotification(contentText: String): Notification {
         val openAppIntent = PendingIntent.getActivity(
@@ -217,7 +238,7 @@ class SafetyService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification(text))
     }
 
-    // ─── Sensor Detectors ────────────────────────────────────────────────────────
+    // ─── Sensor Detectors ─────────────────────────────────────────────────────
 
     private fun setupDetectors() {
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
@@ -240,11 +261,9 @@ class SafetyService : Service() {
 
         val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         if (accelerometer != null) {
-            // Always register shake — it is always active
             sensorManager.registerListener(
                 shakeDetector, accelerometer, SensorManager.SENSOR_DELAY_GAME
             )
-            // Fall detection — only if enabled in settings
             if (PrefsHelper.isFallDetectionEnabled(this)) {
                 sensorManager.registerListener(
                     fallDetector, accelerometer, SensorManager.SENSOR_DELAY_GAME
@@ -253,7 +272,6 @@ class SafetyService : Service() {
             } else {
                 Log.d("SafeShadow", "Fall detector SKIPPED — disabled in settings")
             }
-            // Running detection — only if enabled in settings
             if (PrefsHelper.isRunningDetectionEnabled(this)) {
                 sensorManager.registerListener(
                     runningDetector, accelerometer, SensorManager.SENSOR_DELAY_GAME
@@ -275,53 +293,43 @@ class SafetyService : Service() {
         }
     }
 
-    // ─── Alert Handlers ──────────────────────────────────────────────────────────
+    // ─── Alert Handlers ───────────────────────────────────────────────────────
 
     private fun onShakeTriggered() {
         if (PrefsHelper.isAlertOnCooldown(this)) {
             Log.d("SafeShadow", "Shake ignored — cooldown active")
             return
         }
-
-        // Return early if running session is active
         if (isRunningSessionActive) {
             Log.d("SafeShadow", "Shake ignored — running session active")
             return
         }
-
         showSafetyNotification("Shake detected")
     }
 
     private fun onRunningDetected() {
         if (PrefsHelper.isAlertOnCooldown(this)) return
-        
+
         isRunningSessionActive = true
         Log.d("SafeShadow", "Running session started")
-        
-        // Cancel any pending running session callback
-        if (runningSessionRunnable != null) {
-            runningSessionHandler?.removeCallbacks(runningSessionRunnable!!)
-        }
-        
-        // Post 60 second callback to disable running session
+
+        runningSessionRunnable?.let { runningSessionHandler?.removeCallbacks(it) }
+
         runningSessionHandler = Handler(Looper.getMainLooper())
         runningSessionRunnable = Runnable {
             isRunningSessionActive = false
             Log.d("SafeShadow", "Running session ended — 60s elapsed")
         }
         runningSessionHandler!!.postDelayed(runningSessionRunnable!!, 60000)
-        
-        // Show safety notification
+
         showSafetyNotification("You appear to be running")
     }
 
     private fun cancelRunningSession() {
         isRunningSessionActive = false
-        if (runningSessionHandler != null && runningSessionRunnable != null) {
-            runningSessionHandler!!.removeCallbacks(runningSessionRunnable!!)
-            runningSessionHandler = null
-            runningSessionRunnable = null
-        }
+        runningSessionRunnable?.let { runningSessionHandler?.removeCallbacks(it) }
+        runningSessionHandler = null
+        runningSessionRunnable = null
     }
 
     private fun onSuspiciousEventDetected(reason: String) {
@@ -330,66 +338,78 @@ class SafetyService : Service() {
     }
 
     private fun showSafetyNotification(reason: String) {
-        // Create safety alert notification channel
-        val channel = NotificationChannel(
-            "safety_alert_channel", "Safety Alerts", NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            enableVibration(true)
-            setShowBadge(true)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-        }
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        lastAlertReason = reason
 
-        // Intent for "I'm Safe" action
+        // Use unique request codes based on reason hashcode so extras always update
+        val reasonCode = reason.hashCode()
+
         val safePendingIntent = PendingIntent.getBroadcast(
-            this, 0,
+            this,
+            reasonCode,
             Intent("com.example.safeshadow.ACTION_USER_SAFE").apply {
                 setPackage(packageName)
                 putExtra("extra_reason", reason)
             },
-            PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Intent for "Send Help" action
         val helpPendingIntent = PendingIntent.getBroadcast(
-            this, 1,
+            this,
+            reasonCode + 1,
             Intent("com.example.safeshadow.ACTION_SEND_HELP").apply {
                 setPackage(packageName)
                 putExtra("extra_reason", reason)
             },
-            PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(this, "safety_alert_channel")
-            .setContentTitle("Are you safe?")
-            .setContentText("SafeShadow detected: $reason")
+        // Full screen intent makes it show as heads-up even on locked screen
+        val fullScreenIntent = PendingIntent.getActivity(
+            this,
+            reasonCode + 2,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setContentTitle("⚠️ Are you safe?")
+            .setContentText("SafeShadow detected: $reason. Tap an action.")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(Notification.CATEGORY_ALARM)
-            .setAutoCancel(true)
-            .addAction(0, "I'm Safe", safePendingIntent)
-            .addAction(0, "Send Help", helpPendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .setFullScreenIntent(fullScreenIntent, true)
+            .addAction(0, "✅ I'm Safe", safePendingIntent)
+            .addAction(0, "🆘 Send Help", helpPendingIntent)
             .build()
 
-        getSystemService(NotificationManager::class.java).notify(SAFETY_ALERT_NOTIFICATION_ID, notification)
+        getSystemService(NotificationManager::class.java)
+            .notify(SAFETY_ALERT_NOTIFICATION_ID, notification)
 
-        // Post delayed task to send SOS alert if no response
+        // Auto-send SOS after 15 seconds if no response
+        safetyAlertRunnable?.let { safetyAlertHandler?.removeCallbacks(it) }
         safetyAlertHandler = Handler(Looper.getMainLooper())
         safetyAlertRunnable = Runnable {
+            PrefsHelper.setLastAlertTime(this)
             AlertManager.sendSosAlert(this, reason = "$reason (No Response)")
+            getSystemService(NotificationManager::class.java)
+                .cancel(SAFETY_ALERT_NOTIFICATION_ID)
         }
         safetyAlertHandler!!.postDelayed(safetyAlertRunnable!!, 15000)
+
+        Log.d("SafeShadow", "Safety notification shown for: $reason")
     }
 
-    private fun cancelSafetyAlert() {
-        // Remove callback if pending
-        if (safetyAlertHandler != null && safetyAlertRunnable != null) {
-            safetyAlertHandler!!.removeCallbacks(safetyAlertRunnable!!)
-            safetyAlertHandler = null
-            safetyAlertRunnable = null
-        }
-        // Cancel notification
+    fun cancelSafetyAlert() {
+        safetyAlertRunnable?.let { safetyAlertHandler?.removeCallbacks(it) }
+        safetyAlertHandler = null
+        safetyAlertRunnable = null
         getSystemService(NotificationManager::class.java).cancel(SAFETY_ALERT_NOTIFICATION_ID)
+        Log.d("SafeShadow", "Safety alert cancelled")
     }
 
     private fun resetNotificationAfterDelay() {

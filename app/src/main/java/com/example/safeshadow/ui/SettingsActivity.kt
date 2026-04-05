@@ -36,6 +36,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var radioThemeDark: RadioButton
     private lateinit var btnSaveSettings: Button
 
+    private var settingsSaved = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -140,6 +142,14 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun saveAllSettings() {
+        if (persistSettings()) {
+            settingsSaved = true
+            Toast.makeText(this, "Settings saved ✓", Toast.LENGTH_SHORT).show()
+            finish()
+        }
+    }
+
+    private fun persistSettings(): Boolean {
         // ── Detection toggles ────────────────────────────────────────────────────
         PrefsHelper.setFallDetectionEnabled(this, switchFallDetection.isChecked)
         PrefsHelper.setRunningDetectionEnabled(this, switchRunningDetection.isChecked)
@@ -157,7 +167,7 @@ class SettingsActivity : AppCompatActivity() {
         val customMsg = etCustomSosMessage.text.toString()
         if (customMsg.length > 200) {
             etCustomSosMessage.error = "Message too long (max 200 characters)"
-            return
+            return false
         }
         PrefsHelper.setCustomSosMessage(this, customMsg)
 
@@ -182,9 +192,14 @@ class SettingsActivity : AppCompatActivity() {
             }
             startService(intent)
         }
+        return true
+    }
 
-        Toast.makeText(this, "Settings saved ✓", Toast.LENGTH_SHORT).show()
-        finish()
+    override fun onStop() {
+        super.onStop()
+        if (!settingsSaved) {
+            persistSettings()
+        }
     }
 
     private fun applyTheme(theme: String) {

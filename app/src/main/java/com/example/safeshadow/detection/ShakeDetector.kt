@@ -25,13 +25,13 @@ class ShakeDetector(
 
     companion object {
         /** Minimum g-force required to count as a shake. */
-        private const val SHAKE_THRESHOLD_GRAVITY = 3.0f
+        private const val SHAKE_THRESHOLD_GRAVITY = 2.2f
 
         /** Maximum time window (ms) within which all required shakes must occur. */
         private const val SHAKE_COUNT_RESET_TIME = 3000L
 
         /** Number of consecutive shakes required to trigger the event. */
-        private const val REQUIRED_SHAKES = 3
+        private const val REQUIRED_SHAKES = 2
 
         /** Minimum time (ms) between two shake peaks to prevent noise from being counted multiple times. */
         private const val MIN_TIME_BETWEEN_SHAKES = 250L
