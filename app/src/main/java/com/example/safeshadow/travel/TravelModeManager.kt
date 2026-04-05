@@ -129,6 +129,12 @@ class TravelModeManager(private val context: Context) {
                 return
             }
 
+            // If speed is greater than 0.5 m/s, suppress stillness alert (user is moving)
+            if (location.speed > 0.5f) {
+                Log.d(TAG, "Stillness suppressed — current speed: ${location.speed} m/s")
+                return
+            }
+
             val now = System.currentTimeMillis()
             val lastLat = PrefsHelper.getLastKnownLat(context)
             val lastLng = PrefsHelper.getLastKnownLng(context)

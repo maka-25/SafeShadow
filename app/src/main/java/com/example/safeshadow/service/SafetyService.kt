@@ -30,6 +30,7 @@ class SafetyService : Service() {
 
     companion object {
         const val NOTIFICATION_ID               = 1001
+        const val SAFETY_ALERT_NOTIFICATION_ID  = 2001
         const val ACTION_STOP_SERVICE           = "ACTION_STOP_SERVICE"
         const val ACTION_START_TRAVEL           = "ACTION_START_TRAVEL"
         const val ACTION_STOP_TRAVEL            = "ACTION_STOP_TRAVEL"
@@ -40,6 +41,7 @@ class SafetyService : Service() {
         const val ACTION_TEST_RUNNING           = "ACTION_TEST_RUNNING"
         const val ACTION_SOS_TRIGGERED          = "ACTION_SOS_TRIGGERED"
         const val ACTION_RELOAD_SETTINGS        = "ACTION_RELOAD_SETTINGS"
+        const val ACTION_CANCEL_ALERT           = "com.example.safeshadow.ACTION_CANCEL_ALERT"
 
         private const val CHANNEL_ID   = "SAFE_CHANNEL"
         private const val CHANNEL_NAME = "Safety Service"
@@ -58,9 +60,14 @@ class SafetyService : Service() {
     private var travelModeManager: TravelModeManager? = null
     private var currentNotificationText = "Safety Mode Active 🛡️"
 
-    // Shake confirmation countdown — counts down 5s then sends if not cancelled
-    private var shakeConfirmTimer: CountDownTimer? = null
-    private var shakeConfirmPending = false
+    // Safety alert handler and runnable
+    private var safetyAlertHandler: Handler? = null
+    private var safetyAlertRunnable: Runnable? = null
+
+    // Running session tracking
+    private var isRunningSessionActive = false
+    private var runningSessionHandler: Handler? = null
+    private var runningSessionRunnable: Runnable? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -76,13 +83,17 @@ class SafetyService : Service() {
 
             ACTION_STOP_SERVICE -> {
                 intentionallyStopped = true
-                cancelShakeConfirmation()
+                cancelRunningSession()
                 travelModeManager?.stop()
                 travelModeManager = null
                 stopDetectors()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
+            }
+
+            ACTION_CANCEL_ALERT -> {
+                cancelSafetyAlert()
             }
 
             ACTION_START_TRAVEL -> {
@@ -151,7 +162,8 @@ class SafetyService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        cancelShakeConfirmation()
+        cancelSafetyAlert()
+        cancelRunningSession()
         travelModeManager?.stop()
         travelModeManager = null
         stopDetectors()
@@ -223,7 +235,7 @@ class SafetyService : Service() {
 
         runningDetector = RunningDetector {
             Log.d("SafeShadow", "Running detected")
-            onSuspiciousEventDetected("You appear to be running")
+            onRunningDetected()
         }
 
         val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
@@ -271,63 +283,113 @@ class SafetyService : Service() {
             return
         }
 
-        // If shake confirmation is enabled — show 5s countdown in notification
-        // If user does nothing in 5s, alert sends. Shake again to cancel.
-        if (PrefsHelper.isShakeConfirmationEnabled(this)) {
-            if (shakeConfirmPending) {
-                // Second shake while confirmation pending — treat as cancel
-                cancelShakeConfirmation()
-                Log.d("SafeShadow", "Shake confirmation cancelled by second shake")
-                return
-            }
-            startShakeConfirmation()
-        } else {
-            // No confirmation — send immediately
-            sendShakeSos()
+        // Return early if running session is active
+        if (isRunningSessionActive) {
+            Log.d("SafeShadow", "Shake ignored — running session active")
+            return
         }
+
+        showSafetyNotification("Shake detected")
     }
 
-    private fun startShakeConfirmation() {
-        shakeConfirmPending = true
-        Log.d("SafeShadow", "Shake confirmation started — 5 second countdown")
-
-        shakeConfirmTimer = object : CountDownTimer(SHAKE_CONFIRM_DURATION_MS, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                val secondsLeft = (millisUntilFinished / 1000).toInt()
-                updateNotification("⚠️ SOS in ${secondsLeft}s — Shake again to cancel")
-            }
-
-            override fun onFinish() {
-                shakeConfirmPending = false
-                Log.d("SafeShadow", "Shake confirmation timed out — sending SOS")
-                sendShakeSos()
-            }
-        }.start()
-    }
-
-    private fun cancelShakeConfirmation() {
-        shakeConfirmTimer?.cancel()
-        shakeConfirmTimer = null
-        shakeConfirmPending = false
-        // Restore normal notification
-        if (!intentionallyStopped && PrefsHelper.isSafetyModeOn(this)) {
-            if (PrefsHelper.isTravelActive(this)) {
-                updateNotification("🚗 Travel: ${PrefsHelper.getTravelDestination(this)}")
-            } else {
-                updateNotification("Safety Mode Active 🛡️")
-            }
+    private fun onRunningDetected() {
+        if (PrefsHelper.isAlertOnCooldown(this)) return
+        
+        isRunningSessionActive = true
+        Log.d("SafeShadow", "Running session started")
+        
+        // Cancel any pending running session callback
+        if (runningSessionRunnable != null) {
+            runningSessionHandler?.removeCallbacks(runningSessionRunnable!!)
         }
+        
+        // Post 60 second callback to disable running session
+        runningSessionHandler = Handler(Looper.getMainLooper())
+        runningSessionRunnable = Runnable {
+            isRunningSessionActive = false
+            Log.d("SafeShadow", "Running session ended — 60s elapsed")
+        }
+        runningSessionHandler!!.postDelayed(runningSessionRunnable!!, 60000)
+        
+        // Show safety notification
+        showSafetyNotification("You appear to be running")
     }
 
-    private fun sendShakeSos() {
-        updateNotification("🚨 SOS Triggered! Sending alert...")
-        AlertManager.sendSosAlert(this, reason = "Shake SOS")
-        resetNotificationAfterDelay()
+    private fun cancelRunningSession() {
+        isRunningSessionActive = false
+        if (runningSessionHandler != null && runningSessionRunnable != null) {
+            runningSessionHandler!!.removeCallbacks(runningSessionRunnable!!)
+            runningSessionHandler = null
+            runningSessionRunnable = null
+        }
     }
 
     private fun onSuspiciousEventDetected(reason: String) {
         if (PrefsHelper.isAlertOnCooldown(this)) return
-        SafetyAlertActivity.launch(this, reason)
+        showSafetyNotification(reason)
+    }
+
+    private fun showSafetyNotification(reason: String) {
+        // Create safety alert notification channel
+        val channel = NotificationChannel(
+            "safety_alert_channel", "Safety Alerts", NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            enableVibration(true)
+            setShowBadge(true)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+
+        // Intent for "I'm Safe" action
+        val safePendingIntent = PendingIntent.getBroadcast(
+            this, 0,
+            Intent("com.example.safeshadow.ACTION_USER_SAFE").apply {
+                setPackage(packageName)
+                putExtra("extra_reason", reason)
+            },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Intent for "Send Help" action
+        val helpPendingIntent = PendingIntent.getBroadcast(
+            this, 1,
+            Intent("com.example.safeshadow.ACTION_SEND_HELP").apply {
+                setPackage(packageName)
+                putExtra("extra_reason", reason)
+            },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, "safety_alert_channel")
+            .setContentTitle("Are you safe?")
+            .setContentText("SafeShadow detected: $reason")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(Notification.CATEGORY_ALARM)
+            .setAutoCancel(true)
+            .addAction(0, "I'm Safe", safePendingIntent)
+            .addAction(0, "Send Help", helpPendingIntent)
+            .build()
+
+        getSystemService(NotificationManager::class.java).notify(SAFETY_ALERT_NOTIFICATION_ID, notification)
+
+        // Post delayed task to send SOS alert if no response
+        safetyAlertHandler = Handler(Looper.getMainLooper())
+        safetyAlertRunnable = Runnable {
+            AlertManager.sendSosAlert(this, reason = "$reason (No Response)")
+        }
+        safetyAlertHandler!!.postDelayed(safetyAlertRunnable!!, 15000)
+    }
+
+    private fun cancelSafetyAlert() {
+        // Remove callback if pending
+        if (safetyAlertHandler != null && safetyAlertRunnable != null) {
+            safetyAlertHandler!!.removeCallbacks(safetyAlertRunnable!!)
+            safetyAlertHandler = null
+            safetyAlertRunnable = null
+        }
+        // Cancel notification
+        getSystemService(NotificationManager::class.java).cancel(SAFETY_ALERT_NOTIFICATION_ID)
     }
 
     private fun resetNotificationAfterDelay() {

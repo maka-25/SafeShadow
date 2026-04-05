@@ -76,6 +76,24 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name="com.example.safeshadow.service.SafetyAlertReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.safeshadow.ACTION_USER_SAFE" />
+                <action android:name="com.example.safeshadow.ACTION_SEND_HELP" />
+                <action android:name="com.example.safeshadow.ACTION_CANCEL_SOS" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.example.safeshadow.alert.SmsSentReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.safeshadow.SMS_SENT" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

@@ -47,9 +47,6 @@ class SafetyAlertActivity : AppCompatActivity() {
         if (dialogShown) return
         dialogShown = true
 
-        // Set cooldown immediately when dialog shows
-        PrefsHelper.setLastAlertTime(this)
-
         val reason = intent.getStringExtra(EXTRA_REASON) ?: "Suspicious activity"
         showSafetyDialog(reason)
     }
@@ -99,6 +96,8 @@ class SafetyAlertActivity : AppCompatActivity() {
     }
 
     private fun triggerAlert(reason: String) {
+        // Set cooldown before sending alert
+        PrefsHelper.setLastAlertTime(this)
         // Update notification to show alert is being sent
         notifyServiceSosTriggered()
         // Send SMS with location

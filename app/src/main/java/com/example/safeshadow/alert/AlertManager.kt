@@ -1,7 +1,7 @@
 package com.example.safeshadow.alert
 
 import android.Manifest
-import android.app.Activity
+import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Handler
@@ -89,13 +89,42 @@ object AlertManager {
 
         val smsManager = context.getSystemService(SmsManager::class.java)
         var sentCount = 0
+        val totalCount = contacts.size
 
-        contacts.forEach { number ->
+        contacts.forEachIndexed { index, number ->
             try {
                 val parts = smsManager.divideMessage(message)
-                smsManager.sendMultipartTextMessage(number, null, parts, null, null)
-                Log.d(TAG, "SMS sent to $number")
+
+                // Create sentIntent with SMS_SENT action
+                val sentIntent = PendingIntent.getBroadcast(
+                    context,
+                    index,
+                    android.content.Intent("com.example.safeshadow.SMS_SENT").apply {
+                        setPackage(context.packageName)
+                        putExtra("sms_index", index)
+                        putExtra("sms_total", totalCount)
+                    },
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+
+                // FIX: Use ArrayList instead of Array
+                val sentIntents = ArrayList<PendingIntent>().apply {
+                    repeat(parts.size) {
+                        add(sentIntent)
+                    }
+                }
+
+                smsManager.sendMultipartTextMessage(
+                    number,
+                    null,
+                    parts,
+                    sentIntents,
+                    null
+                )
+
+                Log.d(TAG, "SMS sent to $number (index $index of $totalCount)")
                 sentCount++
+
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send SMS to $number: ${e.message}")
             }

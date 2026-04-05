@@ -1,7 +1,11 @@
 package com.example.safeshadow.ui
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.RadioButton
@@ -19,13 +23,13 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var switchFallDetection: Switch
     private lateinit var switchRunningDetection: Switch
-    private lateinit var switchShakeConfirmation: Switch
     private lateinit var radioGroupCooldown: RadioGroup
     private lateinit var radioCooldown15: RadioButton
     private lateinit var radioCooldown30: RadioButton
     private lateinit var radioCooldown60: RadioButton
     private lateinit var radioCooldown120: RadioButton
     private lateinit var etCustomSosMessage: EditText
+    private lateinit var tvSmsLengthWarning: TextView
     private lateinit var radioGroupTheme: RadioGroup
     private lateinit var radioThemeSystem: RadioButton
     private lateinit var radioThemeLight: RadioButton
@@ -57,13 +61,13 @@ class SettingsActivity : AppCompatActivity() {
     private fun bindViews() {
         switchFallDetection    = findViewById(R.id.switchFallDetection)
         switchRunningDetection = findViewById(R.id.switchRunningDetection)
-        switchShakeConfirmation= findViewById(R.id.switchShakeConfirmation)
         radioGroupCooldown     = findViewById(R.id.radioGroupCooldown)
         radioCooldown15        = findViewById(R.id.radioCooldown15)
         radioCooldown30        = findViewById(R.id.radioCooldown30)
         radioCooldown60        = findViewById(R.id.radioCooldown60)
         radioCooldown120       = findViewById(R.id.radioCooldown120)
         etCustomSosMessage     = findViewById(R.id.etCustomSosMessage)
+        tvSmsLengthWarning     = findViewById(R.id.tvSmsLengthWarning)
         radioGroupTheme        = findViewById(R.id.radioGroupTheme)
         radioThemeSystem       = findViewById(R.id.radioThemeSystem)
         radioThemeLight        = findViewById(R.id.radioThemeLight)
@@ -77,7 +81,6 @@ class SettingsActivity : AppCompatActivity() {
         // Detection toggles
         switchFallDetection.isChecked    = PrefsHelper.isFallDetectionEnabled(this)
         switchRunningDetection.isChecked = PrefsHelper.isRunningDetectionEnabled(this)
-        switchShakeConfirmation.isChecked= PrefsHelper.isShakeConfirmationEnabled(this)
 
         // Cooldown radio
         val cooldownSeconds = PrefsHelper.getAlertCooldownMs(this) / 1000
@@ -92,11 +95,39 @@ class SettingsActivity : AppCompatActivity() {
         // Custom SOS message
         etCustomSosMessage.setText(PrefsHelper.getCustomSosMessage(this))
 
+        // Add TextWatcher to monitor message length
+        etCustomSosMessage.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateSmsLengthWarning()
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
         // Theme radio
         when (PrefsHelper.getTheme(this)) {
             "light"  -> radioThemeLight.isChecked  = true
             "dark"   -> radioThemeDark.isChecked   = true
             else     -> radioThemeSystem.isChecked  = true
+        }
+
+        // Initial update of SMS length warning
+        updateSmsLengthWarning()
+    }
+
+    private fun updateSmsLengthWarning() {
+        val inputLength = etCustomSosMessage.text.length
+        val estimatedTotal = inputLength + 160 // 160 is typical SMS body length
+
+        if (estimatedTotal <= 320) {
+            tvSmsLengthWarning.text = ""
+            tvSmsLengthWarning.visibility = View.GONE
+        } else {
+            tvSmsLengthWarning.text = "Too long, may split into multiple SMS"
+            tvSmsLengthWarning.setTextColor(Color.RED)
+            tvSmsLengthWarning.visibility = View.VISIBLE
         }
     }
 
@@ -112,7 +143,6 @@ class SettingsActivity : AppCompatActivity() {
         // ── Detection toggles ────────────────────────────────────────────────────
         PrefsHelper.setFallDetectionEnabled(this, switchFallDetection.isChecked)
         PrefsHelper.setRunningDetectionEnabled(this, switchRunningDetection.isChecked)
-        PrefsHelper.setShakeConfirmationEnabled(this, switchShakeConfirmation.isChecked)
 
         // ── Cooldown ─────────────────────────────────────────────────────────────
         val cooldownSeconds = when (radioGroupCooldown.checkedRadioButtonId) {

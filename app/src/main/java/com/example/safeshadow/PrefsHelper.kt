@@ -172,14 +172,6 @@ object PrefsHelper {
     fun isRunningDetectionEnabled(context: Context): Boolean =
         prefs(context).getBoolean("setting_running_detection", true)
 
-    // Shake confirmation — shows 5-second buffer activity before sending SOS on shake
-    fun setShakeConfirmationEnabled(context: Context, enabled: Boolean) {
-        prefs(context).edit().putBoolean("setting_shake_confirmation", enabled).apply()
-    }
-
-    fun isShakeConfirmationEnabled(context: Context): Boolean =
-        prefs(context).getBoolean("setting_shake_confirmation", true)
-
     // Alert cooldown in seconds — 15 | 30 | 60 | 120
     fun setAlertCooldownSeconds(context: Context, seconds: Int) {
         prefs(context).edit().putInt("setting_alert_cooldown_seconds", seconds).apply()
