@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="?android:attr/colorBackground">
 
-    <!-- ── SETUP STATE (shown when travel not yet active) ─────────────────────── -->
+    <!-- SETUP STATE (shown when travel not yet active) -->
     <ScrollView
         android:id="@+id/layoutTravelSetup"
         android:layout_width="match_parent"
@@ -268,7 +268,7 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- ── ACTIVE STATE (shown when travel is already running) ───────────────── -->
+    <!-- ACTIVE STATE (shown when travel is already running) -->
     <LinearLayout
         android:id="@+id/layoutTravelActive"
         android:layout_width="match_parent"

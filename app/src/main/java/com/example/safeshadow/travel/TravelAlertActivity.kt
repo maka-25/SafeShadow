@@ -66,7 +66,7 @@ class TravelAlertActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Show over lock screen — same as SafetyAlertActivity
+        // Show over lock screen - same as SafetyAlertActivity
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -154,17 +154,17 @@ class TravelAlertActivity : AppCompatActivity() {
         }.start()
     }
 
-    // ─── Button handlers ────────────────────────────────────────────────────────
+    // Button handlers
 
     private fun onUserSafe() {
         Log.d(TAG, "User confirmed safe")
         countDownTimer?.cancel()
 
-        // If ETA expired and they confirm safe → travel mode ends
+        // If ETA expired and they confirm safe -> travel mode ends
         if (reason == REASON_ETA_EXPIRED) {
             stopTravelMode()
         }
-        // If stillness → just continue monitoring (dismiss dialog only)
+        // If stillness -> just continue monitoring
         notifyManagerAlertDismissed()
         finish()
     }
@@ -190,7 +190,7 @@ class TravelAlertActivity : AppCompatActivity() {
         sendAlertAndFinish("User pressed I NEED HELP during travel")
     }
 
-    // ─── Alert sending ──────────────────────────────────────────────────────────
+    // Alert sending
 
     private fun sendAlertAndFinish(alertReason: String) {
         val destination = PrefsHelper.getTravelDestination(this)
@@ -207,7 +207,7 @@ class TravelAlertActivity : AppCompatActivity() {
 
         AlertManager.sendSosAlert(this, reason = fullReason)
 
-        // Stop travel mode — auto stop after alert
+        // Stop travel mode - auto stop after alert
         stopTravelMode()
         notifyManagerAlertDismissed()
         finish()
@@ -237,6 +237,6 @@ class TravelAlertActivity : AppCompatActivity() {
     // Prevent back button from dismissing without a choice
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        // Do nothing — user must tap a button
+        // Do nothing - user must tap a button
     }
 }

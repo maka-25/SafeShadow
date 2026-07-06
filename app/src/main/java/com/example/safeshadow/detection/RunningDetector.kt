@@ -25,9 +25,9 @@ class RunningDetector(
 
     companion object {
         private const val RUNNING_MIN_G = 1.5f       // Min G for a running step
-        private const val RUNNING_MAX_G = 2.5f       // Max G — above this is shake territory
+        private const val RUNNING_MAX_G = 2.5f       // Max G - above this is shake territory
 
-        // If G exceeds this, assume shake is happening — reset running state
+        // If G exceeds this, assume shake is happening - reset running state
         private const val SHAKE_SUPPRESSION_THRESHOLD = 2.8f
 
         private const val STEP_MIN_INTERVAL = 200L   // Min ms between steps (very fast run)
@@ -56,8 +56,7 @@ class RunningDetector(
         // Respect cooldown
         if (now - lastTriggerTime < COOLDOWN) return
 
-        // Shake suppression — if G is very high, reset running state entirely
-        // This means shaking won't accidentally push us to STEPS_TO_CONFIRM
+        // Shake suppression - if G is very high, reset running state entirely
         if (gForce > SHAKE_SUPPRESSION_THRESHOLD) {
             stepCount = 0
             lastPeakTime = 0L
@@ -70,7 +69,7 @@ class RunningDetector(
             stepCount = 0
         }
 
-        // Detect a step peak — G rises into running range then falls
+        // Detect a step peak - G rises into running range then falls
         if (gForce in RUNNING_MIN_G..RUNNING_MAX_G) {
             if (!isPeak) {
                 val timeSinceLastPeak = now - lastPeakTime
@@ -91,7 +90,7 @@ class RunningDetector(
                         onRunningDetected()
                     }
                 } else if (timeSinceLastPeak > STEP_MAX_INTERVAL) {
-                    // Gap too long — not a consistent running pattern, reset
+                    // Gap too long - not a consistent running pattern, reset
                     stepCount = 0
                     lastPeakTime = now
                     isPeak = true

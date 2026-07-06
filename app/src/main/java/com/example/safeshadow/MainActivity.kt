@@ -107,7 +107,7 @@ class MainActivity : AppCompatActivity() {
         setupSosButton()
     }
 
-    // ─── SOS button setup — always call this to set the correct listener ──────
+    // SOS button setup
 
     private fun setupSosButton() {
         btnSOS.setOnClickListener {
@@ -130,7 +130,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Toolbar menu ─────────────────────────────────────────────────────────
+    // Toolbar menu
 
     override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
@@ -147,7 +147,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
+    // Lifecycle
 
     override fun onResume() {
         super.onResume()
@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Safety service helpers ───────────────────────────────────────────────
+    // Safety service helpers
 
     private fun isSafetyServiceRunning(): Boolean = PrefsHelper.isSafetyModeOn(this)
 
@@ -233,7 +233,7 @@ class MainActivity : AppCompatActivity() {
         updateUI()
     }
 
-    // ─── SOS Countdown ────────────────────────────────────────────────────────
+    // SOS Countdown
 
     private fun startSosCountdown() {
         sosCountdownActive = true
@@ -260,10 +260,6 @@ class MainActivity : AppCompatActivity() {
                 btnToggleSafety.isEnabled = true
                 btnTravelMode.isEnabled = true
 
-                // FIX: Do NOT set cooldown here — AlertManager.sendSosAlert()
-                // sets it inside the location callback just before SMS sends.
-                // Setting it here caused SafetyService to see cooldown active
-                // and block the ACTION_SOS_TRIGGERED intent silently.
                 startService(Intent(this@MainActivity, SafetyService::class.java).apply {
                     action = SafetyService.ACTION_SOS_TRIGGERED
                 })
@@ -319,7 +315,7 @@ class MainActivity : AppCompatActivity() {
         getSystemService(NotificationManager::class.java).notify(2002, notification)
     }
 
-    // ─── UI update ────────────────────────────────────────────────────────────
+    // UI update
 
     private fun updateUI() {
         if (isSafetyServiceRunning()) {
@@ -352,7 +348,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Permissions ──────────────────────────────────────────────────────────
+    // Permissions
 
     private fun requestAllPermissions() {
         val permissions = mutableListOf(

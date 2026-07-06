@@ -44,7 +44,7 @@ class FallDetector(
 
         when (state) {
             FallState.IDLE -> {
-                // Detect free fall — near zero gravity
+                // Detect free fall - near zero gravity
                 if (gForce < FREE_FALL_THRESHOLD) {
                     state = FallState.FREE_FALLING
                     freeFallTime = now
@@ -76,13 +76,13 @@ class FallDetector(
                     if (stillnessStartTime == 0L) {
                         stillnessStartTime = now
                     } else if (now - stillnessStartTime >= STILLNESS_DURATION) {
-                        // Fall confirmed — free fall → impact → stillness
+                        // Fall confirmed - free fall + impact + stillness
                         state = FallState.IDLE
                         lastTriggerTime = now
                         onFallDetected()
                     }
                 } else {
-                    // Movement again — reset stillness timer
+                    // Movement again - reset stillness timer
                     stillnessStartTime = 0L
                 }
             }

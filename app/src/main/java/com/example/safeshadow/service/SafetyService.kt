@@ -137,11 +137,6 @@ class SafetyService : Service() {
             ACTION_TEST_RUNNING -> onSuspiciousEventDetected("You appear to be running")
 
             ACTION_SOS_TRIGGERED -> {
-                // Note: cooldown check is intentionally NOT done here.
-                // MainActivity already checked cooldown before starting the countdown.
-                // AlertManager.sendSosAlert() sets cooldown inside the location callback
-                // just before SMS sends. Checking here would block the intent because
-                // cooldown might already be set by a previous detection event.
                 updateNotification("🚨 SOS Triggered! Sending alert...")
                 AlertManager.sendSosAlert(this, reason = "Manual SOS")
                 resetNotificationAfterDelay()
@@ -174,12 +169,12 @@ class SafetyService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ─── Notification Channels ────────────────────────────────────────────────
+    // Notification Channels
 
     private fun createChannels() {
         val nm = getSystemService(NotificationManager::class.java)
 
-        // Foreground service channel — silent, low importance
+        // Foreground service channel - silent, low importance
         val serviceChannel = NotificationChannel(
             CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW
         ).apply {
@@ -190,7 +185,7 @@ class SafetyService : Service() {
         }
         nm.createNotificationChannel(serviceChannel)
 
-        // Safety alert channel — high importance WITH sound so heads-up appears
+        // Safety alert channel - high importance WITH sound so heads-up appears
         val alertSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)
@@ -209,7 +204,7 @@ class SafetyService : Service() {
         nm.createNotificationChannel(alertChannel)
     }
 
-    // ─── Notification Builder ─────────────────────────────────────────────────
+    // Notification Builder
 
     private fun buildNotification(contentText: String): Notification {
         val openAppIntent = PendingIntent.getActivity(
@@ -238,7 +233,7 @@ class SafetyService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification(text))
     }
 
-    // ─── Sensor Detectors ─────────────────────────────────────────────────────
+    // Sensor Detectors
 
     private fun setupDetectors() {
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
@@ -293,7 +288,7 @@ class SafetyService : Service() {
         }
     }
 
-    // ─── Alert Handlers ───────────────────────────────────────────────────────
+    // Alert Handlers
 
     private fun onShakeTriggered() {
         if (PrefsHelper.isAlertOnCooldown(this)) {
@@ -340,7 +335,7 @@ class SafetyService : Service() {
     private fun showSafetyNotification(reason: String) {
         lastAlertReason = reason
 
-        // Use unique request codes based on reason hashcode so extras always update
+        // Unique request codes based on reason hashcode so extras always update
         val reasonCode = reason.hashCode()
 
         val safePendingIntent = PendingIntent.getBroadcast(
@@ -363,7 +358,6 @@ class SafetyService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Full screen intent makes it show as heads-up even on locked screen
         val fullScreenIntent = PendingIntent.getActivity(
             this,
             reasonCode + 2,

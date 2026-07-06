@@ -58,7 +58,7 @@ class SettingsActivity : AppCompatActivity() {
         return true
     }
 
-    // ─── View Binding ────────────────────────────────────────────────────────────
+    // View Binding
 
     private fun bindViews() {
         switchFallDetection    = findViewById(R.id.switchFallDetection)
@@ -77,7 +77,7 @@ class SettingsActivity : AppCompatActivity() {
         btnSaveSettings        = findViewById(R.id.btnSaveSettings)
     }
 
-    // ─── Load saved values into UI ───────────────────────────────────────────────
+    // Load saved values into UI
 
     private fun loadCurrentSettings() {
         // Detection toggles
@@ -133,7 +133,7 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Save button ─────────────────────────────────────────────────────────────
+    // Save button
 
     private fun setupSaveButton() {
         btnSaveSettings.setOnClickListener {
@@ -150,11 +150,11 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun persistSettings(): Boolean {
-        // ── Detection toggles ────────────────────────────────────────────────────
+        // Detection toggles
         PrefsHelper.setFallDetectionEnabled(this, switchFallDetection.isChecked)
         PrefsHelper.setRunningDetectionEnabled(this, switchRunningDetection.isChecked)
 
-        // ── Cooldown ─────────────────────────────────────────────────────────────
+        // Cooldown
         val cooldownSeconds = when (radioGroupCooldown.checkedRadioButtonId) {
             R.id.radioCooldown30  -> 30
             R.id.radioCooldown60  -> 60
@@ -163,7 +163,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         PrefsHelper.setAlertCooldownSeconds(this, cooldownSeconds)
 
-        // ── Custom SOS message ───────────────────────────────────────────────────
+        // Custom SOS message
         val customMsg = etCustomSosMessage.text.toString()
         if (customMsg.length > 200) {
             etCustomSosMessage.error = "Message too long (max 200 characters)"
@@ -171,7 +171,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         PrefsHelper.setCustomSosMessage(this, customMsg)
 
-        // ── Theme ────────────────────────────────────────────────────────────────
+        // Theme
         val selectedTheme = when (radioGroupTheme.checkedRadioButtonId) {
             R.id.radioThemeLight -> "light"
             R.id.radioThemeDark  -> "dark"
@@ -185,7 +185,7 @@ class SettingsActivity : AppCompatActivity() {
             applyTheme(selectedTheme)
         }
 
-        // ── Notify SafetyService to reload detector settings ─────────────────────
+        // Notify SafetyService to reload detector settings
         if (PrefsHelper.isSafetyModeOn(this)) {
             val intent = Intent(this, SafetyService::class.java).apply {
                 action = SafetyService.ACTION_RELOAD_SETTINGS

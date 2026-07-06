@@ -11,7 +11,7 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- ── SECTION: Detection ─────────────────────────────────────────────── -->
+        <!-- Detection -->
 
         <TextView
             android:layout_width="match_parent"
@@ -124,7 +124,7 @@
 
         </LinearLayout>
 
-        <!-- ── SECTION: Alert Cooldown ────────────────────────────────────────── -->
+        <!-- Alert Cooldown -->
 
         <TextView
             android:layout_width="match_parent"
@@ -201,7 +201,7 @@
             </RadioGroup>
         </LinearLayout>
 
-        <!-- ── SECTION: Custom SOS Message ───────────────────────────────────── -->
+        <!-- Custom SOS Message -->
 
         <TextView
             android:layout_width="match_parent"
@@ -266,7 +266,7 @@
 
         </LinearLayout>
 
-        <!-- ── SECTION: Appearance ────────────────────────────────────────────── -->
+        <!-- Appearance -->
 
         <TextView
             android:layout_width="match_parent"
@@ -324,7 +324,7 @@
             </RadioGroup>
         </LinearLayout>
 
-        <!-- ── SECTION: How it works ──────────────────────────────────────────── -->
+        <!-- How it works -->
 
         <TextView
             android:layout_width="match_parent"
@@ -354,7 +354,7 @@
 
         </LinearLayout>
 
-        <!-- ── Save Button ────────────────────────────────────────────────────── -->
+        <!-- Save Button -->
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSaveSettings"

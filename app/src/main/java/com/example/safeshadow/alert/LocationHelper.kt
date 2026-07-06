@@ -143,7 +143,7 @@ object LocationHelper {
 
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
 
-            // Try last known location first (fast, no battery cost)
+            // Try last known location first
             fusedClient.lastLocation
                 .addOnSuccessListener { location ->
                     if (location != null) {

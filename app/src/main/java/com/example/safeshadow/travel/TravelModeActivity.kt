@@ -94,7 +94,7 @@ class TravelModeActivity : AppCompatActivity() {
         }
     }
 
-    // ─── View binding ─────────────────────────────────────────────────────────
+    // View binding
 
     private fun bindViews() {
         mapView               = findViewById(R.id.mapView)
@@ -112,7 +112,7 @@ class TravelModeActivity : AppCompatActivity() {
         btnStopTravel         = findViewById(R.id.btnStopTravel)
     }
 
-    // ─── Map setup ────────────────────────────────────────────────────────────
+    // Map setup
 
     private fun setupMap() {
         mapView.setTileSource(TileSourceFactory.MAPNIK)
@@ -142,7 +142,7 @@ class TravelModeActivity : AppCompatActivity() {
         mapView.overlays.add(MapEventsOverlay(tapReceiver))
     }
 
-    // ─── Destination search (Nominatim) ───────────────────────────────────────
+    // Destination search (Nominatim)
 
     private fun setupSearch() {
         etSearch.addTextChangedListener(object : TextWatcher {
@@ -241,7 +241,7 @@ class TravelModeActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Marker placement ─────────────────────────────────────────────────────
+    // Marker placement
 
     private fun placeMarker(point: GeoPoint, name: String) {
         destinationMarker?.let { mapView.overlays.remove(it) }
@@ -267,7 +267,7 @@ class TravelModeActivity : AppCompatActivity() {
         Log.d(TAG, "Marker placed: $name at $selectedLat, $selectedLng")
     }
 
-    // ─── ETA selection ────────────────────────────────────────────────────────
+    // ETA selection
 
     private fun setupEtaSelector() {
         // Hide custom fields initially
@@ -358,7 +358,7 @@ class TravelModeActivity : AppCompatActivity() {
         }
     }
 
-    // ─── Start travel ─────────────────────────────────────────────────────────
+    // Start travel
 
     private fun onStartTravelClicked() {
         if (selectedLat == 0.0 && selectedLng == 0.0) {
@@ -388,7 +388,7 @@ class TravelModeActivity : AppCompatActivity() {
         finish()
     }
 
-    // ─── Active state UI ──────────────────────────────────────────────────────
+    // Active state UI
 
     private fun showActiveState() {
         layoutSetup.visibility = View.GONE
@@ -416,7 +416,7 @@ class TravelModeActivity : AppCompatActivity() {
         layoutActive.visibility = View.GONE
     }
 
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
+    // Lifecycle
 
     override fun onResume() {
         super.onResume()

@@ -24,7 +24,6 @@ object AlertManager {
     fun sendSosAlert(context: Context, reason: String = "SOS") {
         Log.d(TAG, "sendSosAlert called — reason: $reason")
 
-        // Always use applicationContext to avoid Service/Activity context issues
         val appContext = context.applicationContext
 
         val contacts = PrefsHelper.getContactNumbers(appContext)
@@ -77,7 +76,7 @@ object AlertManager {
         )
     }
 
-    // ─── Message Builder ──────────────────────────────────────────────────────
+    // Message Builder
 
     private fun buildMessage(context: Context, reason: String, mapsLink: String?): String {
         val timestamp = SimpleDateFormat(
@@ -102,7 +101,7 @@ object AlertManager {
         }
     }
 
-    // ─── SMS Sender ───────────────────────────────────────────────────────────
+    // SMS Sender
 
     private fun sendSmsToAll(
         context: Context,
@@ -169,7 +168,7 @@ object AlertManager {
         showToast(context, toastMsg)
     }
 
-    // ─── Toast ────────────────────────────────────────────────────────────────
+    // Toast
 
     private fun showToast(context: Context, message: String) {
         Handler(Looper.getMainLooper()).post {

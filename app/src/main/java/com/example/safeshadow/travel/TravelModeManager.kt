@@ -72,7 +72,7 @@ class TravelModeManager(private val context: Context) {
         alertShowing = false
     }
 
-    // ─── Core check ───────────────────────────────────────────────────────────
+    // Core check
 
     private fun checkTravelStatus() {
         if (alertShowing) {
@@ -101,7 +101,7 @@ class TravelModeManager(private val context: Context) {
         }
     }
 
-    // ─── Stillness detection ──────────────────────────────────────────────────
+    // Stillness detection
 
     private suspend fun checkStillness() {
         try {
@@ -155,7 +155,7 @@ class TravelModeManager(private val context: Context) {
         }
     }
 
-    // ─── Travel alert notification ────────────────────────────────────────────
+    // Travel alert notification
 
     private fun showTravelAlertNotification(reason: String) {
         if (alertShowing) return

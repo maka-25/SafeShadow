@@ -12,7 +12,7 @@ object PrefsHelper {
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // ─── Contacts ──────────────────────────────────────────────────────────────
+    // Contacts
 
     fun saveContacts(context: Context, contacts: List<Contact>) {
         val raw = contacts.joinToString(",") { "${it.name}|${it.phone}" }
@@ -32,7 +32,7 @@ object PrefsHelper {
     fun getContactNumbers(context: Context): List<String> =
         getContacts(context).map { it.phone }
 
-    // ─── Safety Mode ───────────────────────────────────────────────────────────
+    // Safety Mode
 
     fun setSafetyModeOn(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean(KEY_SAFETY_MODE, on).apply()
@@ -41,7 +41,7 @@ object PrefsHelper {
     fun isSafetyModeOn(context: Context): Boolean =
         prefs(context).getBoolean(KEY_SAFETY_MODE, false)
 
-    // ─── Battery Optimization ──────────────────────────────────────────────────
+    // Battery Optimization
 
     fun setBatteryOptimizationAsked(context: Context) {
         prefs(context).edit().putBoolean("battery_opt_asked", true).apply()
@@ -50,7 +50,7 @@ object PrefsHelper {
     fun wasBatteryOptimizationAsked(context: Context): Boolean =
         prefs(context).getBoolean("battery_opt_asked", false)
 
-    // ─── Alert Cooldown ────────────────────────────────────────────────────────
+    // Alert Cooldown
 
     fun setLastAlertTime(context: Context) {
         prefs(context).edit()
@@ -65,7 +65,7 @@ object PrefsHelper {
         return System.currentTimeMillis() - last < effectiveCooldown
     }
 
-    // ─── Travel Mode ───────────────────────────────────────────────────────────
+    // Travel Mode
 
     fun startTravel(
         context: Context,
@@ -146,7 +146,7 @@ object PrefsHelper {
     fun getLastKnownLocTime(context: Context): Long =
         prefs(context).getLong("last_loc_time", 0L)
 
-    // ─── Settings ──────────────────────────────────────────────────────────────
+    // Settings
 
     // Theme: "system" | "light" | "dark"
     fun setTheme(context: Context, theme: String) {

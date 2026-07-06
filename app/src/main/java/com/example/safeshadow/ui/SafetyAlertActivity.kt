@@ -54,7 +54,7 @@ class SafetyAlertActivity : AppCompatActivity() {
     // Prevent relaunching if already showing
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Do nothing — dialog already showing
+        // Do nothing - dialog already showing
     }
 
     private fun showSafetyDialog(reason: String) {
@@ -66,7 +66,7 @@ class SafetyAlertActivity : AppCompatActivity() {
             .setCancelable(false)
             .setPositiveButton("✅ YES, I'm Safe") { _, _ ->
                 countDownTimer?.cancel()
-                // Reset cooldown — user confirmed safe
+                // Reset cooldown - user confirmed safe
                 finish()
             }
             .setNegativeButton("🆘 NO, Send Help") { _, _ ->
